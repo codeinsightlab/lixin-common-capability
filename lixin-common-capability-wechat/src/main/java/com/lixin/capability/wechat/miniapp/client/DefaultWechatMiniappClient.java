@@ -5,6 +5,7 @@ import cn.binarywang.wx.miniapp.bean.WxMaJscode2SessionResult;
 import cn.binarywang.wx.miniapp.bean.WxMaPhoneNumberInfo;
 import com.lixin.capability.wechat.exception.WechatCapabilityApiException;
 import com.lixin.capability.wechat.exception.WechatCapabilityInvalidRequestException;
+import com.lixin.capability.wechat.exception.WechatCapabilityParseException;
 import com.lixin.capability.wechat.miniapp.dto.Code2SessionRequest;
 import com.lixin.capability.wechat.miniapp.dto.Code2SessionResponse;
 import com.lixin.capability.wechat.miniapp.dto.PhoneNumberRequest;
@@ -28,12 +29,19 @@ public class DefaultWechatMiniappClient implements WechatMiniappClient {
         }
         try {
             WxMaJscode2SessionResult result = wxMaService.jsCode2SessionInfo(request.getCode());
-            Code2SessionResponse response = new Code2SessionResponse();
-            if (result != null) {
-                response.setOpenId(result.getOpenid());
-                response.setUnionId(result.getUnionid());
-                response.setSessionKey(result.getSessionKey());
+            if (result == null) {
+                throw new WechatCapabilityApiException("WeChat miniapp code2Session returned empty response.");
             }
+            if (isBlank(result.getOpenid())) {
+                throw new WechatCapabilityParseException("WeChat miniapp code2Session response openId must not be blank.");
+            }
+            if (isBlank(result.getSessionKey())) {
+                throw new WechatCapabilityParseException("WeChat miniapp code2Session response sessionKey must not be blank.");
+            }
+            Code2SessionResponse response = new Code2SessionResponse();
+            response.setOpenId(result.getOpenid());
+            response.setUnionId(result.getUnionid());
+            response.setSessionKey(result.getSessionKey());
             return response;
         } catch (WxErrorException e) {
             throw toApiException("WeChat miniapp code2Session failed.", e);
@@ -47,12 +55,19 @@ public class DefaultWechatMiniappClient implements WechatMiniappClient {
         }
         try {
             WxMaPhoneNumberInfo phoneInfo = wxMaService.getUserService().getPhoneNoInfo(request.getCode());
-            PhoneNumberResponse response = new PhoneNumberResponse();
-            if (phoneInfo != null) {
-                response.setPhoneNumber(phoneInfo.getPhoneNumber());
-                response.setPurePhoneNumber(phoneInfo.getPurePhoneNumber());
-                response.setCountryCode(phoneInfo.getCountryCode());
+            if (phoneInfo == null) {
+                throw new WechatCapabilityApiException("WeChat miniapp phone number request returned empty response.");
             }
+            if (isBlank(phoneInfo.getPhoneNumber())) {
+                throw new WechatCapabilityParseException("WeChat miniapp phone number response phoneNumber must not be blank.");
+            }
+            if (isBlank(phoneInfo.getPurePhoneNumber())) {
+                throw new WechatCapabilityParseException("WeChat miniapp phone number response purePhoneNumber must not be blank.");
+            }
+            PhoneNumberResponse response = new PhoneNumberResponse();
+            response.setPhoneNumber(phoneInfo.getPhoneNumber());
+            response.setPurePhoneNumber(phoneInfo.getPurePhoneNumber());
+            response.setCountryCode(phoneInfo.getCountryCode());
             return response;
         } catch (WxErrorException e) {
             throw toApiException("WeChat miniapp phone number request failed.", e);
@@ -62,7 +77,11 @@ public class DefaultWechatMiniappClient implements WechatMiniappClient {
     @Override
     public String getAccessToken() {
         try {
-            return wxMaService.getAccessToken();
+            String accessToken = wxMaService.getAccessToken();
+            if (isBlank(accessToken)) {
+                throw new WechatCapabilityApiException("WeChat miniapp access_token response must not be blank.");
+            }
+            return accessToken;
         } catch (WxErrorException e) {
             throw toApiException("WeChat miniapp access_token request failed.", e);
         }

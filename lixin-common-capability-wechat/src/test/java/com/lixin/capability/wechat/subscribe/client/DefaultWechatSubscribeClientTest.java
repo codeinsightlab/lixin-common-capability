@@ -87,7 +87,7 @@ class DefaultWechatSubscribeClientTest {
         assertThat(message.getData().get(1).getName()).isEqualTo("time2");
         assertThat(message.getData().get(1).getValue()).isEqualTo("2026-04-30");
         assertThat(response.getSuccess()).isTrue();
-        assertThat(response.getRawResponse()).isEqualTo("OK");
+        assertThat(response.getRawResponse()).isNull();
     }
 
     @Test
@@ -117,6 +117,30 @@ class DefaultWechatSubscribeClientTest {
         assertThatThrownBy(() -> client.send(request))
                 .isInstanceOf(WechatCapabilityApiException.class)
                 .hasMessageContaining("subscribe message send failed");
+    }
+
+    @Test
+    void sendRejectsNullDataItem() {
+        SubscribeMessageSendRequest request = new SubscribeMessageSendRequest();
+        request.setToUser("openid-1");
+        request.setTemplateId("template-1");
+        request.setData(Arrays.asList(data("thing1", "hello"), null));
+
+        assertThatThrownBy(() -> client.send(request))
+                .isInstanceOf(WechatCapabilityInvalidRequestException.class)
+                .hasMessageContaining("data item");
+    }
+
+    @Test
+    void sendRejectsBlankDataName() {
+        SubscribeMessageSendRequest request = new SubscribeMessageSendRequest();
+        request.setToUser("openid-1");
+        request.setTemplateId("template-1");
+        request.setData(Arrays.asList(data(" ", "hello")));
+
+        assertThatThrownBy(() -> client.send(request))
+                .isInstanceOf(WechatCapabilityInvalidRequestException.class)
+                .hasMessageContaining("name");
     }
 
     private SubscribeMessageData data(String name, String value) {

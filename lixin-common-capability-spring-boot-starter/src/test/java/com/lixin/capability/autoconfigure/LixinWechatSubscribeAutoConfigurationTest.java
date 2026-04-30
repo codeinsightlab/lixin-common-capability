@@ -38,7 +38,7 @@ class LixinWechatSubscribeAutoConfigurationTest {
     }
 
     @Test
-    void doesNotCreateSubscribeClientWhenWxMaServiceMissing() {
+    void failsClearlyWhenWxMaServiceMissing() {
         contextRunner
                 .withPropertyValues(
                         "lixin.capability.wechat.miniapp.enabled=false",
@@ -46,8 +46,9 @@ class LixinWechatSubscribeAutoConfigurationTest {
                         "lixin.capability.wechat.subscribe.default-mini-program-state=formal",
                         "lixin.capability.wechat.subscribe.default-lang=zh_CN")
                 .run(context -> {
-                    assertThat(context).hasNotFailed();
-                    assertThat(context).doesNotHaveBean(WechatSubscribeClient.class);
+                    assertThat(context).hasFailed();
+                    assertThat(context.getStartupFailure())
+                            .hasMessageContaining("WxMaService");
                 });
     }
 }

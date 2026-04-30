@@ -6,6 +6,7 @@ import cn.binarywang.wx.miniapp.bean.WxMaJscode2SessionResult;
 import cn.binarywang.wx.miniapp.bean.WxMaPhoneNumberInfo;
 import com.lixin.capability.wechat.exception.WechatCapabilityApiException;
 import com.lixin.capability.wechat.exception.WechatCapabilityInvalidRequestException;
+import com.lixin.capability.wechat.exception.WechatCapabilityParseException;
 import com.lixin.capability.wechat.miniapp.dto.Code2SessionRequest;
 import com.lixin.capability.wechat.miniapp.dto.Code2SessionResponse;
 import com.lixin.capability.wechat.miniapp.dto.PhoneNumberRequest;
@@ -68,6 +69,43 @@ class DefaultWechatMiniappClientTest {
     }
 
     @Test
+    void code2SessionRejectsNullSdkResponse() throws Exception {
+        Code2SessionRequest request = new Code2SessionRequest();
+        request.setCode("login-code");
+        when(wxMaService.jsCode2SessionInfo("login-code")).thenReturn(null);
+
+        assertThatThrownBy(() -> client.code2Session(request))
+                .isInstanceOf(WechatCapabilityApiException.class)
+                .hasMessageContaining("empty response");
+    }
+
+    @Test
+    void code2SessionRejectsBlankOpenId() throws Exception {
+        Code2SessionRequest request = new Code2SessionRequest();
+        request.setCode("login-code");
+        WxMaJscode2SessionResult sdkResult = new WxMaJscode2SessionResult();
+        sdkResult.setSessionKey("session-key-1");
+        when(wxMaService.jsCode2SessionInfo("login-code")).thenReturn(sdkResult);
+
+        assertThatThrownBy(() -> client.code2Session(request))
+                .isInstanceOf(WechatCapabilityParseException.class)
+                .hasMessageContaining("openId");
+    }
+
+    @Test
+    void code2SessionRejectsBlankSessionKey() throws Exception {
+        Code2SessionRequest request = new Code2SessionRequest();
+        request.setCode("login-code");
+        WxMaJscode2SessionResult sdkResult = new WxMaJscode2SessionResult();
+        sdkResult.setOpenid("openid-1");
+        when(wxMaService.jsCode2SessionInfo("login-code")).thenReturn(sdkResult);
+
+        assertThatThrownBy(() -> client.code2Session(request))
+                .isInstanceOf(WechatCapabilityParseException.class)
+                .hasMessageContaining("sessionKey");
+    }
+
+    @Test
     void getPhoneNumberRejectsNullRequest() {
         assertThatThrownBy(() -> client.getPhoneNumber(null))
                 .isInstanceOf(WechatCapabilityInvalidRequestException.class);
@@ -116,6 +154,49 @@ class DefaultWechatMiniappClientTest {
     }
 
     @Test
+    void getPhoneNumberRejectsNullSdkResponse() throws Exception {
+        PhoneNumberRequest request = new PhoneNumberRequest();
+        request.setCode("phone-code");
+        WxMaUserService userService = mock(WxMaUserService.class);
+        when(wxMaService.getUserService()).thenReturn(userService);
+        when(userService.getPhoneNoInfo("phone-code")).thenReturn(null);
+
+        assertThatThrownBy(() -> client.getPhoneNumber(request))
+                .isInstanceOf(WechatCapabilityApiException.class)
+                .hasMessageContaining("empty response");
+    }
+
+    @Test
+    void getPhoneNumberRejectsBlankPhoneNumber() throws Exception {
+        PhoneNumberRequest request = new PhoneNumberRequest();
+        request.setCode("phone-code");
+        WxMaUserService userService = mock(WxMaUserService.class);
+        WxMaPhoneNumberInfo phoneInfo = new WxMaPhoneNumberInfo();
+        phoneInfo.setPurePhoneNumber("13800138000");
+        when(wxMaService.getUserService()).thenReturn(userService);
+        when(userService.getPhoneNoInfo("phone-code")).thenReturn(phoneInfo);
+
+        assertThatThrownBy(() -> client.getPhoneNumber(request))
+                .isInstanceOf(WechatCapabilityParseException.class)
+                .hasMessageContaining("phoneNumber");
+    }
+
+    @Test
+    void getPhoneNumberRejectsBlankPurePhoneNumber() throws Exception {
+        PhoneNumberRequest request = new PhoneNumberRequest();
+        request.setCode("phone-code");
+        WxMaUserService userService = mock(WxMaUserService.class);
+        WxMaPhoneNumberInfo phoneInfo = new WxMaPhoneNumberInfo();
+        phoneInfo.setPhoneNumber("13800138000");
+        when(wxMaService.getUserService()).thenReturn(userService);
+        when(userService.getPhoneNoInfo("phone-code")).thenReturn(phoneInfo);
+
+        assertThatThrownBy(() -> client.getPhoneNumber(request))
+                .isInstanceOf(WechatCapabilityParseException.class)
+                .hasMessageContaining("purePhoneNumber");
+    }
+
+    @Test
     void getAccessTokenCallsSdk() throws Exception {
         when(wxMaService.getAccessToken()).thenReturn("access-token");
 
@@ -126,6 +207,15 @@ class DefaultWechatMiniappClientTest {
     @Test
     void getAccessTokenConvertsSdkException() throws Exception {
         when(wxMaService.getAccessToken()).thenThrow(new WxErrorException("sdk failed"));
+
+        assertThatThrownBy(client::getAccessToken)
+                .isInstanceOf(WechatCapabilityApiException.class)
+                .hasMessageContaining("access_token");
+    }
+
+    @Test
+    void getAccessTokenRejectsBlankSdkResponse() throws Exception {
+        when(wxMaService.getAccessToken()).thenReturn(" ");
 
         assertThatThrownBy(client::getAccessToken)
                 .isInstanceOf(WechatCapabilityApiException.class)

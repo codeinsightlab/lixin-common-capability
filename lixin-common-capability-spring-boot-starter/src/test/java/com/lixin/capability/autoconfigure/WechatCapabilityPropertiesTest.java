@@ -1,7 +1,11 @@
 package com.lixin.capability.autoconfigure;
 
+import cn.binarywang.wx.miniapp.api.WxMaService;
 import com.lixin.capability.wechat.pay.client.internal.WechatPayJsapiAdapter;
+import com.lixin.capability.wechat.pay.client.internal.WechatPayNotifyAdapter;
+import com.lixin.capability.wechat.pay.client.internal.WechatPayRefundAdapter;
 import com.wechat.pay.java.core.Config;
+import com.wechat.pay.java.core.notification.NotificationParser;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
@@ -33,6 +37,7 @@ class WechatCapabilityPropertiesTest {
     @Test
     void bindsSubscribeProperties() {
         contextRunner
+                .withBean(WxMaService.class, () -> mock(WxMaService.class))
                 .withPropertyValues(
                         "lixin.capability.wechat.subscribe.enabled=true",
                         "lixin.capability.wechat.subscribe.default-mini-program-state=developer",
@@ -50,7 +55,10 @@ class WechatCapabilityPropertiesTest {
     void bindsPayProperties() {
         contextRunner
                 .withBean(Config.class, () -> mock(Config.class))
+                .withBean(NotificationParser.class, () -> mock(NotificationParser.class))
                 .withBean(WechatPayJsapiAdapter.class, () -> mock(WechatPayJsapiAdapter.class))
+                .withBean(WechatPayRefundAdapter.class, () -> mock(WechatPayRefundAdapter.class))
+                .withBean(WechatPayNotifyAdapter.class, () -> mock(WechatPayNotifyAdapter.class))
                 .withPropertyValues(
                         "lixin.capability.wechat.pay.enabled=true",
                         "lixin.capability.wechat.pay.app-id=pay-app-id",

@@ -1,13 +1,21 @@
 package com.lixin.capability.wechat.pay.client;
 
 import com.lixin.capability.wechat.exception.WechatCapabilityApiException;
+import com.lixin.capability.wechat.exception.WechatCapabilityException;
 import com.lixin.capability.wechat.exception.WechatCapabilityInvalidRequestException;
+import com.lixin.capability.wechat.exception.WechatCapabilityParseException;
 import com.lixin.capability.wechat.pay.client.internal.WechatPayJsapiAdapter;
+import com.lixin.capability.wechat.pay.client.internal.WechatPayRefundAdapter;
 import com.lixin.capability.wechat.pay.dto.JsapiPrepayRequest;
 import com.lixin.capability.wechat.pay.dto.JsapiPrepayResponse;
+import com.lixin.capability.wechat.pay.dto.RefundRequest;
+import com.lixin.capability.wechat.pay.dto.RefundResponse;
 import com.wechat.pay.java.core.exception.ValidationException;
 import com.wechat.pay.java.service.payments.jsapi.model.PrepayRequest;
 import com.wechat.pay.java.service.payments.jsapi.model.PrepayWithRequestPaymentResponse;
+import com.wechat.pay.java.service.refund.model.CreateRequest;
+import com.wechat.pay.java.service.refund.model.Refund;
+import com.wechat.pay.java.service.refund.model.Status;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -21,12 +29,20 @@ import static org.mockito.Mockito.when;
 
 class DefaultWechatPayClientTest {
     private WechatPayJsapiAdapter jsapiAdapter;
+    private WechatPayRefundAdapter refundAdapter;
     private DefaultWechatPayClient client;
 
     @BeforeEach
     void setUp() {
         jsapiAdapter = mock(WechatPayJsapiAdapter.class);
-        client = new DefaultWechatPayClient("app-id-1", "mch-id-1", "https://example.com/pay/notify", jsapiAdapter);
+        refundAdapter = mock(WechatPayRefundAdapter.class);
+        client = new DefaultWechatPayClient(
+                "app-id-1",
+                "mch-id-1",
+                "https://example.com/pay/notify",
+                "https://example.com/pay/refund/notify",
+                jsapiAdapter,
+                refundAdapter);
     }
 
     @Test
@@ -142,6 +158,295 @@ class DefaultWechatPayClientTest {
                 .hasMessageContaining("JSAPI prepay failed");
     }
 
+    @Test
+    void jsapiPrepayRejectsNullSdkResponse() {
+        when(jsapiAdapter.prepay(any(PrepayRequest.class))).thenReturn(null);
+
+        assertThatThrownBy(() -> client.jsapiPrepay(validRequest()))
+                .isInstanceOf(WechatCapabilityApiException.class)
+                .hasMessageContaining("empty response");
+    }
+
+    @Test
+    void jsapiPrepayRejectsBlankAppId() {
+        PrepayWithRequestPaymentResponse response = sdkResponse();
+        response.setAppId(" ");
+        when(jsapiAdapter.prepay(any(PrepayRequest.class))).thenReturn(response);
+
+        assertThatThrownBy(() -> client.jsapiPrepay(validRequest()))
+                .isInstanceOf(WechatCapabilityParseException.class)
+                .hasMessageContaining("appId");
+    }
+
+    @Test
+    void jsapiPrepayRejectsBlankTimeStamp() {
+        PrepayWithRequestPaymentResponse response = sdkResponse();
+        response.setTimeStamp(" ");
+        when(jsapiAdapter.prepay(any(PrepayRequest.class))).thenReturn(response);
+
+        assertThatThrownBy(() -> client.jsapiPrepay(validRequest()))
+                .isInstanceOf(WechatCapabilityParseException.class)
+                .hasMessageContaining("timeStamp");
+    }
+
+    @Test
+    void jsapiPrepayRejectsBlankNonceStr() {
+        PrepayWithRequestPaymentResponse response = sdkResponse();
+        response.setNonceStr(" ");
+        when(jsapiAdapter.prepay(any(PrepayRequest.class))).thenReturn(response);
+
+        assertThatThrownBy(() -> client.jsapiPrepay(validRequest()))
+                .isInstanceOf(WechatCapabilityParseException.class)
+                .hasMessageContaining("nonceStr");
+    }
+
+    @Test
+    void jsapiPrepayRejectsBlankPackageVal() {
+        PrepayWithRequestPaymentResponse response = sdkResponse();
+        response.setPackageVal(" ");
+        when(jsapiAdapter.prepay(any(PrepayRequest.class))).thenReturn(response);
+
+        assertThatThrownBy(() -> client.jsapiPrepay(validRequest()))
+                .isInstanceOf(WechatCapabilityParseException.class)
+                .hasMessageContaining("packageVal");
+    }
+
+    @Test
+    void jsapiPrepayRejectsInvalidPackageValFormat() {
+        PrepayWithRequestPaymentResponse response = sdkResponse();
+        response.setPackageVal("prepay-id-1");
+        when(jsapiAdapter.prepay(any(PrepayRequest.class))).thenReturn(response);
+
+        assertThatThrownBy(() -> client.jsapiPrepay(validRequest()))
+                .isInstanceOf(WechatCapabilityParseException.class)
+                .hasMessageContaining("prepay_id=xxx");
+    }
+
+    @Test
+    void jsapiPrepayRejectsBlankPrepayId() {
+        PrepayWithRequestPaymentResponse response = sdkResponse();
+        response.setPackageVal("prepay_id= ");
+        when(jsapiAdapter.prepay(any(PrepayRequest.class))).thenReturn(response);
+
+        assertThatThrownBy(() -> client.jsapiPrepay(validRequest()))
+                .isInstanceOf(WechatCapabilityParseException.class)
+                .hasMessageContaining("prepayId");
+    }
+
+    @Test
+    void jsapiPrepayRejectsBlankSignType() {
+        PrepayWithRequestPaymentResponse response = sdkResponse();
+        response.setSignType(" ");
+        when(jsapiAdapter.prepay(any(PrepayRequest.class))).thenReturn(response);
+
+        assertThatThrownBy(() -> client.jsapiPrepay(validRequest()))
+                .isInstanceOf(WechatCapabilityParseException.class)
+                .hasMessageContaining("signType");
+    }
+
+    @Test
+    void jsapiPrepayRejectsBlankPaySign() {
+        PrepayWithRequestPaymentResponse response = sdkResponse();
+        response.setPaySign(" ");
+        when(jsapiAdapter.prepay(any(PrepayRequest.class))).thenReturn(response);
+
+        assertThatThrownBy(() -> client.jsapiPrepay(validRequest()))
+                .isInstanceOf(WechatCapabilityParseException.class)
+                .hasMessageContaining("paySign");
+    }
+
+    @Test
+    void refundRejectsNullRequest() {
+        assertThatThrownBy(() -> client.refund(null))
+                .isInstanceOf(WechatCapabilityInvalidRequestException.class)
+                .hasMessageContaining("must not be null");
+    }
+
+    @Test
+    void refundRejectsBlankResponseOutRefundNo() {
+        RefundRequest request = validRefundRequest();
+        request.setOutRefundNo(" ");
+
+        assertThatThrownBy(() -> client.refund(request))
+                .isInstanceOf(WechatCapabilityInvalidRequestException.class)
+                .hasMessageContaining("outRefundNo");
+    }
+
+    @Test
+    void refundRejectsMissingOutTradeNoAndTransactionId() {
+        RefundRequest request = validRefundRequest();
+        request.setOutTradeNo(null);
+        request.setTransactionId(" ");
+
+        assertThatThrownBy(() -> client.refund(request))
+                .isInstanceOf(WechatCapabilityInvalidRequestException.class)
+                .hasMessageContaining("outTradeNo or transactionId");
+    }
+
+    @Test
+    void refundRejectsNullRefundAmount() {
+        RefundRequest request = validRefundRequest();
+        request.setRefundAmount(null);
+
+        assertThatThrownBy(() -> client.refund(request))
+                .isInstanceOf(WechatCapabilityInvalidRequestException.class)
+                .hasMessageContaining("refundAmount");
+    }
+
+    @Test
+    void refundRejectsInvalidRefundAmount() {
+        RefundRequest request = validRefundRequest();
+        request.setRefundAmount(0);
+
+        assertThatThrownBy(() -> client.refund(request))
+                .isInstanceOf(WechatCapabilityInvalidRequestException.class)
+                .hasMessageContaining("refundAmount");
+    }
+
+    @Test
+    void refundRejectsNullTotalAmount() {
+        RefundRequest request = validRefundRequest();
+        request.setTotalAmount(null);
+
+        assertThatThrownBy(() -> client.refund(request))
+                .isInstanceOf(WechatCapabilityInvalidRequestException.class)
+                .hasMessageContaining("totalAmount");
+    }
+
+    @Test
+    void refundRejectsInvalidTotalAmount() {
+        RefundRequest request = validRefundRequest();
+        request.setTotalAmount(0);
+
+        assertThatThrownBy(() -> client.refund(request))
+                .isInstanceOf(WechatCapabilityInvalidRequestException.class)
+                .hasMessageContaining("totalAmount");
+    }
+
+    @Test
+    void refundRejectsRefundAmountGreaterThanTotalAmount() {
+        RefundRequest request = validRefundRequest();
+        request.setRefundAmount(101);
+        request.setTotalAmount(100);
+
+        assertThatThrownBy(() -> client.refund(request))
+                .isInstanceOf(WechatCapabilityInvalidRequestException.class)
+                .hasMessageContaining("greater than totalAmount");
+    }
+
+    @Test
+    void refundConvertsRequestAndResponse() {
+        when(refundAdapter.create(any(CreateRequest.class))).thenReturn(refundResponse());
+        RefundRequest request = validRefundRequest();
+        request.setCurrency(null);
+        request.setNotifyUrl("https://example.com/request/refund-notify");
+
+        RefundResponse response = client.refund(request);
+
+        ArgumentCaptor<CreateRequest> captor = ArgumentCaptor.forClass(CreateRequest.class);
+        verify(refundAdapter).create(captor.capture());
+        CreateRequest sdkRequest = captor.getValue();
+        assertThat(sdkRequest.getOutTradeNo()).isEqualTo("out-trade-no-1");
+        assertThat(sdkRequest.getTransactionId()).isEqualTo("transaction-id-1");
+        assertThat(sdkRequest.getOutRefundNo()).isEqualTo("out-refund-no-1");
+        assertThat(sdkRequest.getReason()).isEqualTo("refund reason");
+        assertThat(sdkRequest.getNotifyUrl()).isEqualTo("https://example.com/request/refund-notify");
+        assertThat(sdkRequest.getAmount().getRefund()).isEqualTo(50L);
+        assertThat(sdkRequest.getAmount().getTotal()).isEqualTo(100L);
+        assertThat(sdkRequest.getAmount().getCurrency()).isEqualTo("CNY");
+
+        assertThat(response.getRefundId()).isEqualTo("refund-id-1");
+        assertThat(response.getOutRefundNo()).isEqualTo("out-refund-no-1");
+        assertThat(response.getTransactionId()).isEqualTo("transaction-id-1");
+        assertThat(response.getOutTradeNo()).isEqualTo("out-trade-no-1");
+        assertThat(response.getStatus()).isEqualTo("PROCESSING");
+        assertThat(response.getRawResponse()).isNull();
+    }
+
+    @Test
+    void refundUsesDefaultRefundNotifyUrlWhenRequestNotifyUrlBlank() {
+        when(refundAdapter.create(any(CreateRequest.class))).thenReturn(refundResponse());
+        RefundRequest request = validRefundRequest();
+        request.setNotifyUrl(" ");
+
+        client.refund(request);
+
+        ArgumentCaptor<CreateRequest> captor = ArgumentCaptor.forClass(CreateRequest.class);
+        verify(refundAdapter).create(captor.capture());
+        assertThat(captor.getValue().getNotifyUrl()).isEqualTo("https://example.com/pay/refund/notify");
+    }
+
+    @Test
+    void refundDoesNotSendBlankNotifyUrlWhenNoDefaultConfigured() {
+        DefaultWechatPayClient noDefaultRefundNotifyClient = new DefaultWechatPayClient(
+                "app-id-1",
+                "mch-id-1",
+                "https://example.com/pay/notify",
+                null,
+                jsapiAdapter,
+                refundAdapter);
+        when(refundAdapter.create(any(CreateRequest.class))).thenReturn(refundResponse());
+        RefundRequest request = validRefundRequest();
+        request.setNotifyUrl(" ");
+
+        noDefaultRefundNotifyClient.refund(request);
+
+        ArgumentCaptor<CreateRequest> captor = ArgumentCaptor.forClass(CreateRequest.class);
+        verify(refundAdapter).create(captor.capture());
+        assertThat(captor.getValue().getNotifyUrl()).isNull();
+    }
+
+    @Test
+    void refundConvertsSdkException() {
+        when(refundAdapter.create(any(CreateRequest.class))).thenThrow(new ValidationException("sdk failed"));
+
+        assertThatThrownBy(() -> client.refund(validRefundRequest()))
+                .isInstanceOf(WechatCapabilityApiException.class)
+                .hasMessageContaining("refund failed");
+    }
+
+    @Test
+    void refundRejectsNullSdkResponse() {
+        when(refundAdapter.create(any(CreateRequest.class))).thenReturn(null);
+
+        assertThatThrownBy(() -> client.refund(validRefundRequest()))
+                .isInstanceOf(WechatCapabilityApiException.class)
+                .hasMessageContaining("empty response");
+    }
+
+    @Test
+    void refundRejectsBlankRefundId() {
+        Refund response = refundResponse();
+        response.setRefundId(" ");
+        when(refundAdapter.create(any(CreateRequest.class))).thenReturn(response);
+
+        assertThatThrownBy(() -> client.refund(validRefundRequest()))
+                .isInstanceOf(WechatCapabilityParseException.class)
+                .hasMessageContaining("refundId");
+    }
+
+    @Test
+    void refundRejectsBlankOutRefundNo() {
+        Refund response = refundResponse();
+        response.setOutRefundNo(" ");
+        when(refundAdapter.create(any(CreateRequest.class))).thenReturn(response);
+
+        assertThatThrownBy(() -> client.refund(validRefundRequest()))
+                .isInstanceOf(WechatCapabilityParseException.class)
+                .hasMessageContaining("outRefundNo");
+    }
+
+    @Test
+    void refundRejectsMissingStatus() {
+        Refund response = refundResponse();
+        response.setStatus(null);
+        when(refundAdapter.create(any(CreateRequest.class))).thenReturn(response);
+
+        assertThatThrownBy(() -> client.refund(validRefundRequest()))
+                .isInstanceOf(WechatCapabilityParseException.class)
+                .hasMessageContaining("status");
+    }
+
     private JsapiPrepayRequest validRequest() {
         JsapiPrepayRequest request = new JsapiPrepayRequest();
         request.setDescription("test goods");
@@ -154,6 +459,19 @@ class DefaultWechatPayClientTest {
         return request;
     }
 
+    private RefundRequest validRefundRequest() {
+        RefundRequest request = new RefundRequest();
+        request.setOutTradeNo("out-trade-no-1");
+        request.setTransactionId("transaction-id-1");
+        request.setOutRefundNo("out-refund-no-1");
+        request.setReason("refund reason");
+        request.setNotifyUrl("https://example.com/refund/notify");
+        request.setRefundAmount(50);
+        request.setTotalAmount(100);
+        request.setCurrency("CNY");
+        return request;
+    }
+
     private PrepayWithRequestPaymentResponse sdkResponse() {
         PrepayWithRequestPaymentResponse response = new PrepayWithRequestPaymentResponse();
         response.setAppId("app-id-1");
@@ -162,6 +480,16 @@ class DefaultWechatPayClientTest {
         response.setPackageVal("prepay_id=prepay-id-1");
         response.setSignType("RSA");
         response.setPaySign("pay-sign-1");
+        return response;
+    }
+
+    private Refund refundResponse() {
+        Refund response = new Refund();
+        response.setRefundId("refund-id-1");
+        response.setOutRefundNo("out-refund-no-1");
+        response.setTransactionId("transaction-id-1");
+        response.setOutTradeNo("out-trade-no-1");
+        response.setStatus(Status.PROCESSING);
         return response;
     }
 }

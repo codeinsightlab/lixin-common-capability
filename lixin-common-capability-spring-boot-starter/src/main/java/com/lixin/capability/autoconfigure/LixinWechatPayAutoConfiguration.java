@@ -6,9 +6,15 @@ import com.lixin.capability.wechat.pay.client.DefaultWechatPayNotifyClient;
 import com.lixin.capability.wechat.pay.client.WechatPayClient;
 import com.lixin.capability.wechat.pay.client.WechatPayNotifyClient;
 import com.lixin.capability.wechat.pay.client.internal.OfficialWechatPayJsapiAdapter;
+import com.lixin.capability.wechat.pay.client.internal.OfficialWechatPayNotifyAdapter;
+import com.lixin.capability.wechat.pay.client.internal.OfficialWechatPayRefundAdapter;
 import com.lixin.capability.wechat.pay.client.internal.WechatPayJsapiAdapter;
+import com.lixin.capability.wechat.pay.client.internal.WechatPayNotifyAdapter;
+import com.lixin.capability.wechat.pay.client.internal.WechatPayRefundAdapter;
 import com.wechat.pay.java.core.Config;
 import com.wechat.pay.java.core.RSAAutoCertificateConfig;
+import com.wechat.pay.java.core.notification.AutoCertificateNotificationConfig;
+import com.wechat.pay.java.core.notification.NotificationParser;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
@@ -22,12 +28,18 @@ public class LixinWechatPayAutoConfiguration {
     public Config wechatPayConfig(WechatCapabilityProperties properties) {
         WechatCapabilityProperties.Pay pay = properties.getPay();
         validatePay(pay);
-        return new RSAAutoCertificateConfig.Builder()
-                .merchantId(pay.getMchId())
-                .privateKeyFromPath(pay.getPrivateKeyPath())
-                .merchantSerialNumber(pay.getMerchantSerialNumber())
-                .apiV3Key(pay.getApiV3Key())
-                .build();
+        try {
+            return new RSAAutoCertificateConfig.Builder()
+                    .merchantId(pay.getMchId())
+                    .privateKeyFromPath(pay.getPrivateKeyPath())
+                    .merchantSerialNumber(pay.getMerchantSerialNumber())
+                    .apiV3Key(pay.getApiV3Key())
+                    .build();
+        } catch (RuntimeException e) {
+            throw new WechatCapabilityConfigException(
+                    "WeChat Pay SDK config initialization failed. Check private-key-path, merchant-serial-number, and api-v3-key configuration.",
+                    e);
+        }
     }
 
     @Bean
@@ -38,17 +50,58 @@ public class LixinWechatPayAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public WechatPayClient wechatPayClient(WechatCapabilityProperties properties, WechatPayJsapiAdapter jsapiAdapter) {
-        WechatCapabilityProperties.Pay pay = properties.getPay();
-        validatePay(pay);
-        return new DefaultWechatPayClient(pay.getAppId(), pay.getMchId(), pay.getNotifyUrl(), jsapiAdapter);
+    public WechatPayRefundAdapter wechatPayRefundAdapter(Config wechatPayConfig) {
+        return new OfficialWechatPayRefundAdapter(wechatPayConfig);
     }
 
     @Bean
     @ConditionalOnMissingBean
-    public WechatPayNotifyClient wechatPayNotifyClient(WechatCapabilityProperties properties) {
+    public NotificationParser wechatPayNotificationParser(WechatCapabilityProperties properties) {
+        WechatCapabilityProperties.Pay pay = properties.getPay();
+        validatePay(pay);
+        try {
+            AutoCertificateNotificationConfig notificationConfig = new AutoCertificateNotificationConfig.Builder()
+                    .merchantId(pay.getMchId())
+                    .privateKeyFromPath(pay.getPrivateKeyPath())
+                    .merchantSerialNumber(pay.getMerchantSerialNumber())
+                    .apiV3Key(pay.getApiV3Key())
+                    .build();
+            return new NotificationParser(notificationConfig);
+        } catch (RuntimeException e) {
+            throw new WechatCapabilityConfigException(
+                    "WeChat Pay notification parser initialization failed. Check private-key-path, merchant-serial-number, and api-v3-key configuration.",
+                    e);
+        }
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public WechatPayNotifyAdapter wechatPayNotifyAdapter(NotificationParser wechatPayNotificationParser) {
+        return new OfficialWechatPayNotifyAdapter(wechatPayNotificationParser);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public WechatPayClient wechatPayClient(WechatCapabilityProperties properties,
+                                           WechatPayJsapiAdapter jsapiAdapter,
+                                           WechatPayRefundAdapter refundAdapter) {
+        WechatCapabilityProperties.Pay pay = properties.getPay();
+        validatePay(pay);
+        return new DefaultWechatPayClient(
+                pay.getAppId(),
+                pay.getMchId(),
+                pay.getNotifyUrl(),
+                pay.getRefundNotifyUrl(),
+                jsapiAdapter,
+                refundAdapter);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public WechatPayNotifyClient wechatPayNotifyClient(WechatCapabilityProperties properties,
+                                                       WechatPayNotifyAdapter notifyAdapter) {
         validatePay(properties.getPay());
-        return new DefaultWechatPayNotifyClient();
+        return new DefaultWechatPayNotifyClient(notifyAdapter);
     }
 
     private void validatePay(WechatCapabilityProperties.Pay pay) {

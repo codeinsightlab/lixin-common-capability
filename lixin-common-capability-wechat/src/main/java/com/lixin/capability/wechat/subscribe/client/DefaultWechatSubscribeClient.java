@@ -36,7 +36,6 @@ public class DefaultWechatSubscribeClient implements WechatSubscribeClient {
             subscribeService.sendSubscribeMsg(message);
             SubscribeMessageSendResponse response = new SubscribeMessageSendResponse();
             response.setSuccess(true);
-            response.setRawResponse("OK");
             return response;
         } catch (WxErrorException e) {
             throw toApiException(e);
@@ -54,7 +53,10 @@ public class DefaultWechatSubscribeClient implements WechatSubscribeClient {
             List<WxMaSubscribeMessage.MsgData> data = new ArrayList<>();
             for (SubscribeMessageData item : request.getData()) {
                 if (item == null) {
-                    continue;
+                    throw new WechatCapabilityInvalidRequestException("Subscribe message data item must not be null.");
+                }
+                if (isBlank(item.getName())) {
+                    throw new WechatCapabilityInvalidRequestException("Subscribe message data item name must not be blank.");
                 }
                 WxMaSubscribeMessage.MsgData msgData = new WxMaSubscribeMessage.MsgData();
                 msgData.setName(item.getName());
