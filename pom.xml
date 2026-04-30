@@ -13,8 +13,9 @@
     <description>Common capability starters for Spring Boot projects.</description>
 
     <modules>
-        <module>lixin-common-capability-wechat</module>
-        <module>lixin-common-capability-spring-boot-starter</module>
+        <module>lixin-common-capability-core</module>
+        <module>lixin-common-capability-wechat-spring-boot-starter</module>
+        <module>lixin-common-capability-all-spring-boot-starter</module>
     </modules>
 
     <properties>

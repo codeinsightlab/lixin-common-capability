@@ -34,15 +34,29 @@ V1 focuses on generic WeChat capability boundaries for Mini Program, subscribe m
 
 ## Maven Dependency
 
-This is a local/internal module. Use the starter from the same project version:
+This is a local/internal module. Business projects are recommended to import capability starters on demand.
+
+Use the WeChat starter when the project only needs WeChat capabilities:
 
 ```xml
 <dependency>
     <groupId>com.lixin</groupId>
-    <artifactId>lixin-common-capability-spring-boot-starter</artifactId>
+    <artifactId>lixin-common-capability-wechat-spring-boot-starter</artifactId>
     <version>0.1.0-SNAPSHOT</version>
 </dependency>
 ```
+
+Use the all-starter when the project wants to import every capability starter provided by this project:
+
+```xml
+<dependency>
+    <groupId>com.lixin</groupId>
+    <artifactId>lixin-common-capability-all-spring-boot-starter</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+</dependency>
+```
+
+The all-starter is only an aggregation package. It currently aggregates the WeChat starter only, and will aggregate NetEase IM, OSS, and other capability starters in future versions. The current WeChat configuration prefix, usage examples, and error handling rules remain valid.
 
 ## Configuration Example
 
