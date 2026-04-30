@@ -24,6 +24,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <spring.boot.version>2.7.18</spring.boot.version>
         <wx.sdk.version>4.6.0</wx.sdk.version>
+        <wechatpay.java.version>0.2.17</wechatpay.java.version>
     </properties>
 
     <dependencyManagement>
