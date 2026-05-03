@@ -16,6 +16,7 @@
         <module>lixin-common-capability-core</module>
         <module>lixin-common-capability-wechat-spring-boot-starter</module>
         <module>lixin-common-capability-oss-spring-boot-starter</module>
+        <module>lixin-common-capability-netease-im-spring-boot-starter</module>
         <module>lixin-common-capability-all-spring-boot-starter</module>
     </modules>
 

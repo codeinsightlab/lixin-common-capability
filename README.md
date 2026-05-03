@@ -2,7 +2,7 @@
 
 `lixin-common-capability` is a Spring Boot 2.x compatible common capability starter project.
 
-V1 focuses on generic WeChat capability boundaries and Aliyun OSS basic gateway capability. Business projects decide when to call these clients and how to handle their own domain state.
+V1 focuses on generic WeChat capability boundaries, Aliyun OSS basic gateway capability, and Netease IM account gateway plus callback signature verification. Business projects decide when to call these clients and how to handle their own domain state.
 
 ## V1 Supported Capabilities
 
@@ -18,6 +18,10 @@ V1 focuses on generic WeChat capability boundaries and Aliyun OSS basic gateway 
 - Aliyun OSS upload from `byte[]`
 - Aliyun OSS object deletion
 - Aliyun OSS signed URL generation
+- Netease IM account creation
+- Netease IM account profile update
+- Netease IM token refresh
+- Netease IM callback signature verification
 
 ## Explicitly Not Supported In V1
 
@@ -47,6 +51,14 @@ V1 focuses on generic WeChat capability boundaries and Aliyun OSS basic gateway 
 - Business objectKey directory rules such as `avatar/{userId}` or `order/{orderId}`
 - Image compression, watermarking, or cropping
 - WeChat onboarding media upload or other business-specific file upload flows
+- Netease IM user registration or login
+- Binding `SysUser`, `LoginUser`, or business user IDs to Netease IM `accountId`
+- IM token persistence
+- Conversation lists, message records, read/unread state, or conversation deletion
+- Historical chat synchronization
+- IM event persistence or event dispatch
+- Order chat relation handling
+- Business rules such as `conversationId = from + "|1|" + to`
 
 ## Maven Dependency
 
@@ -72,6 +84,16 @@ Use the OSS starter when the project only needs Aliyun OSS gateway capabilities:
 </dependency>
 ```
 
+Use the Netease IM starter when the project only needs Netease IM account gateway and callback signature verification:
+
+```xml
+<dependency>
+    <groupId>com.lixin</groupId>
+    <artifactId>lixin-common-capability-netease-im-spring-boot-starter</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+</dependency>
+```
+
 Use the all-starter when the project wants to import every capability starter provided by this project:
 
 ```xml
@@ -82,7 +104,7 @@ Use the all-starter when the project wants to import every capability starter pr
 </dependency>
 ```
 
-The all-starter is only an aggregation package. It currently aggregates the WeChat starter and OSS starter. The current WeChat and OSS configuration prefixes, usage examples, and error handling rules remain valid.
+The all-starter is only an aggregation package. It currently aggregates the WeChat starter, OSS starter, and Netease IM starter. The current WeChat, OSS, and Netease IM configuration prefixes, usage examples, and error handling rules remain valid.
 
 ## Configuration Example
 
@@ -135,6 +157,22 @@ lixin:
 ```
 
 `object-key-prefix` is only an environment-level common prefix such as `dev/`, `test/`, or `prod/`. Business projects must still pass the `objectKey` and own business directory strategy outside the starter.
+
+The Netease IM configuration prefix is `lixin.capability.netease.im`. `enabled` defaults to `false`; when it is `true`, `app-key` and `app-secret` are required. `base-url` defaults to the official server API base URL `https://api.yunxinapi.com/nimserver`.
+
+```yaml
+lixin:
+  capability:
+    netease:
+      im:
+        enabled: true
+        app-key: ${NETEASE_IM_APP_KEY}
+        app-secret: ${NETEASE_IM_APP_SECRET}
+        timeout-millis: 10000
+        base-url: https://api.yunxinapi.com/nimserver
+```
+
+Do not add business fields such as `userId`, `sysUser`, `tokenStorage`, `order`, or `conversation` to Netease IM starter configuration.
 
 ## Mini Program Usage
 
@@ -357,6 +395,64 @@ public class OssExample {
 
 `LixinOssClient.uploadInputStream` accepts an `InputStream`, required `objectKey`, positive `contentLength`, optional `contentType`, and optional `Map<String, String>` metadata. `uploadBytes` wraps bytes into an input stream internally. `generateUrl` creates an Aliyun OSS signed URL; it does not assemble a public URL from a base URL.
 
+## Netease IM Usage
+
+```java
+import com.lixin.capability.netease.im.callback.NeteaseImCallbackVerifier;
+import com.lixin.capability.netease.im.client.NeteaseImAccountClient;
+import com.lixin.capability.netease.im.dto.CreateImAccountRequest;
+import com.lixin.capability.netease.im.dto.CreateImAccountResponse;
+import com.lixin.capability.netease.im.dto.RefreshImTokenRequest;
+import com.lixin.capability.netease.im.dto.RefreshImTokenResponse;
+import com.lixin.capability.netease.im.dto.UpdateImAccountRequest;
+import com.lixin.capability.netease.im.dto.VerifyImCallbackRequest;
+import com.lixin.capability.netease.im.dto.VerifyImCallbackResponse;
+
+public class NeteaseImExample {
+    private final NeteaseImAccountClient accountClient;
+    private final NeteaseImCallbackVerifier callbackVerifier;
+
+    public NeteaseImExample(NeteaseImAccountClient accountClient,
+                            NeteaseImCallbackVerifier callbackVerifier) {
+        this.accountClient = accountClient;
+        this.callbackVerifier = callbackVerifier;
+    }
+
+    public CreateImAccountResponse create(String accountId) {
+        CreateImAccountRequest request = new CreateImAccountRequest();
+        request.setAccountId(accountId);
+        return accountClient.createAccount(request);
+    }
+
+    public void updateProfile(String accountId, String name, String avatar) {
+        UpdateImAccountRequest request = new UpdateImAccountRequest();
+        request.setAccountId(accountId);
+        request.setName(name);
+        request.setAvatar(avatar);
+        accountClient.updateAccountProfile(request);
+    }
+
+    public RefreshImTokenResponse refreshToken(String accountId) {
+        RefreshImTokenRequest request = new RefreshImTokenRequest();
+        request.setAccountId(accountId);
+        return accountClient.refreshToken(request);
+    }
+
+    public VerifyImCallbackResponse verify(String appKey, String curTime,
+                                           String bodyMd5, String checkSum, String body) {
+        VerifyImCallbackRequest request = new VerifyImCallbackRequest();
+        request.setAppKey(appKey);
+        request.setCurTime(curTime);
+        request.setBodyMd5(bodyMd5);
+        request.setCheckSum(checkSum);
+        request.setBody(body);
+        return callbackVerifier.verify(request);
+    }
+}
+```
+
+`accountId` is provided by the business project. The starter does not know whether it equals a business user ID, does not persist IM tokens, and does not create conversation, message, event, order, or user-binding records. `VerifyImCallbackResponse.verified=false` is the expected result for signature mismatch; missing callback parameters still throw an invalid request exception.
+
 ## Error Handling Rules
 
 - Configuration errors throw `WechatCapabilityConfigException`.
@@ -371,6 +467,11 @@ public class OssExample {
 - OSS invalid input throws `OssCapabilityInvalidRequestException`.
 - Aliyun OSS SDK call failures throw `OssCapabilityApiException`.
 - OSS SDK `null` responses, empty signed URLs, missing ETag, or missing critical response fields throw `OssCapabilityParseException`.
+- Netease IM configuration errors throw `NeteaseImConfigException`.
+- Netease IM invalid input throws `NeteaseImInvalidRequestException`.
+- Netease IM HTTP failures or provider failure codes throw `NeteaseImApiException`.
+- Netease IM empty responses, missing `accountId`, missing required `token`, or parse failures throw `NeteaseImParseException`.
+- Netease IM callback algorithm failures throw `NeteaseImCallbackVerifyException`; signature mismatch returns `verified=false`.
 
 ## Raw Response Semantics
 
@@ -380,6 +481,7 @@ public class OssExample {
 - Notify `rawPlaintext` is the plaintext notification content, or its serialized representation, after SDK signature verification and decryption.
 - `rawPlaintext` is intended for troubleshooting and audit. Business decisions should use structured fields such as `outTradeNo`, `tradeState`, `outRefundNo`, and `refundStatus`.
 - OSS `UploadObjectResponse.rawResponse` is only populated from real Aliyun OSS SDK response information when the SDK exposes it. It is not synthesized.
+- Netease IM `rawResponse` stores the real HTTP response body returned by Netease IM server APIs. It is not synthesized. Callback verification responses do not fabricate raw payload fields.
 
 ## Auto Configuration
 
@@ -392,10 +494,13 @@ public class OssExample {
 - `lixin.capability.oss.enabled=true` registers `LixinOssClient` for Aliyun OSS.
 - `lixin.capability.oss.enabled=false` or missing does not register OSS beans.
 - OSS V1 rejects any provider other than `aliyun`.
+- `lixin.capability.netease.im.enabled=true` registers `NeteaseImAccountClient` and `NeteaseImCallbackVerifier`.
+- `lixin.capability.netease.im.enabled=false` or missing does not register Netease IM beans.
+- Missing Netease IM `app-key`, `app-secret`, blank `base-url`, or invalid `timeout-millis` fails explicitly at startup.
 
 ## Business Boundary
 
-Business projects decide which openId to use, which trade or refund number to use, where the amount comes from, which OSS objectKey to use, where file records are stored, and how to handle business state after payment, refund, upload, deletion, or URL generation. This starter only owns generic WeChat request building, OSS SDK calls, response mapping, notify parsing, signed URL generation, and exception boundaries.
+Business projects decide which openId to use, which trade or refund number to use, where the amount comes from, which OSS objectKey to use, which Netease IM `accountId` to use, where IM tokens are stored, and how to handle business state after payment, refund, upload, deletion, URL generation, IM account operations, or callback verification. This starter only owns generic WeChat request building, OSS SDK calls, Netease IM HTTP API calls, response mapping, notify or callback verification, signed URL generation, and exception boundaries.
 
 ## Version Suggestion
 

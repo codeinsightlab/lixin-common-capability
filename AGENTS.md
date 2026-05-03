@@ -40,6 +40,7 @@
 - `lixin-common-capability-core`
 - `lixin-common-capability-wechat-spring-boot-starter`
 - `lixin-common-capability-oss-spring-boot-starter`
+- `lixin-common-capability-netease-im-spring-boot-starter`
 - `lixin-common-capability-all-spring-boot-starter`
 
 模块规则：
@@ -252,7 +253,45 @@ OSS V1 当前不支持：
 
 不得在 README 或 Skill 中把上述不支持能力描述为已支持能力。
 
-## 11. 后续能力新增规则
+## 11. 网易云信 IM V1 当前边界
+
+网易云信 IM V1 当前支持能力：
+
+- `NeteaseImAccountClient.createAccount`
+- `NeteaseImAccountClient.updateAccountProfile`
+- `NeteaseImAccountClient.refreshToken`
+- `NeteaseImCallbackVerifier.verify`
+
+网易云信 IM V1 当前只支持：
+
+- 网易云信账号 Gateway
+- 网易云信回调签名校验
+- 统一 HTTP client provider
+- 业务方传入 `accountId`
+- `extensionJson` 字符串扩展字段
+- `bodyMd5` 表达回调 body 的 MD5
+
+网易云信 IM V1 当前不支持：
+
+- SDK v1 / SDK v2 / HTTP PATCH 混用
+- 用户注册 / 登录
+- `SysUser` / `LoginUser` / `SecurityUtils`
+- `SysUser` 与 `accid` 绑定
+- token 写库
+- 会话列表
+- 消息记录
+- 已读 / 未读
+- 删除会话
+- 历史聊天同步
+- 事件落库 / 事件分发
+- 订单聊天关系
+- `conversationId = from + "|1|" + to` 这类业务规则
+- 暴露网易云信 SDK DTO
+- Controller 默认业务处理
+
+不得在 README 或 Skill 中把上述不支持能力描述为已支持能力。
+
+## 12. 后续能力新增规则
 
 新增网易云信、短信等能力时，必须按以下顺序执行：
 
@@ -267,7 +306,7 @@ OSS V1 当前不支持：
 
 新增能力时必须继续遵守业务边界规则、错误处理硬约束、README 同步规则和 Skill 同步硬约束。
 
-## 12. 文档风格
+## 13. 文档风格
 
 项目文档必须使用 Markdown。
 
@@ -280,7 +319,7 @@ OSS V1 当前不支持：
 - 不写长篇产品愿景。
 - 不把未来规划能力写成已支持能力。
 
-## 13. 本文件变更规则
+## 14. 本文件变更规则
 
 修改 `AGENTS.md` 时必须保持规则强度不降低。
 
