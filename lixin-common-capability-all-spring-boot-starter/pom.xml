@@ -21,5 +21,10 @@
             <artifactId>lixin-common-capability-wechat-spring-boot-starter</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <dependency>
+            <groupId>com.lixin</groupId>
+            <artifactId>lixin-common-capability-oss-spring-boot-starter</artifactId>
+            <version>${project.version}</version>
+        </dependency>
     </dependencies>
 </project>

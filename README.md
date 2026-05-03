@@ -2,7 +2,7 @@
 
 `lixin-common-capability` is a Spring Boot 2.x compatible common capability starter project.
 
-V1 focuses on generic WeChat capability boundaries for Mini Program, subscribe messages, and normal merchant WeChat Pay. Business projects decide when to call these clients and how to handle their own domain state.
+V1 focuses on generic WeChat capability boundaries and Aliyun OSS basic gateway capability. Business projects decide when to call these clients and how to handle their own domain state.
 
 ## V1 Supported Capabilities
 
@@ -14,6 +14,10 @@ V1 focuses on generic WeChat capability boundaries for Mini Program, subscribe m
 - WeChat Pay normal merchant refund request
 - Payment notify signature verification, decryption, and parsing
 - Refund notify signature verification, decryption, and parsing
+- Aliyun OSS upload from `InputStream`
+- Aliyun OSS upload from `byte[]`
+- Aliyun OSS object deletion
+- Aliyun OSS signed URL generation
 
 ## Explicitly Not Supported In V1
 
@@ -31,6 +35,18 @@ V1 focuses on generic WeChat capability boundaries for Mini Program, subscribe m
 - Controller examples as a default business implementation
 - Admin pages
 - Multi payment channel SPI
+- OSS multi provider SPI
+- Tencent COS, MinIO, Qiniu, or other OSS providers
+- Public URL assembly by `base-url + objectKey`
+- Automatic objectKey generation
+- Local file upload handling
+- File table persistence
+- User avatar binding
+- Order image relation handling
+- File permission, audit, or risk-control handling
+- Business objectKey directory rules such as `avatar/{userId}` or `order/{orderId}`
+- Image compression, watermarking, or cropping
+- WeChat onboarding media upload or other business-specific file upload flows
 
 ## Maven Dependency
 
@@ -46,6 +62,16 @@ Use the WeChat starter when the project only needs WeChat capabilities:
 </dependency>
 ```
 
+Use the OSS starter when the project only needs Aliyun OSS gateway capabilities:
+
+```xml
+<dependency>
+    <groupId>com.lixin</groupId>
+    <artifactId>lixin-common-capability-oss-spring-boot-starter</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+</dependency>
+```
+
 Use the all-starter when the project wants to import every capability starter provided by this project:
 
 ```xml
@@ -56,11 +82,11 @@ Use the all-starter when the project wants to import every capability starter pr
 </dependency>
 ```
 
-The all-starter is only an aggregation package. It currently aggregates the WeChat starter only, and will aggregate NetEase IM, OSS, and other capability starters in future versions. The current WeChat configuration prefix, usage examples, and error handling rules remain valid.
+The all-starter is only an aggregation package. It currently aggregates the WeChat starter and OSS starter. The current WeChat and OSS configuration prefixes, usage examples, and error handling rules remain valid.
 
 ## Configuration Example
 
-The configuration prefix is `lixin.capability.wechat`.
+The WeChat configuration prefix is `lixin.capability.wechat`.
 
 ```yaml
 lixin:
@@ -91,6 +117,24 @@ lixin:
 ```
 
 V1 only supports Mini Program `storage.type: memory`.
+
+The OSS configuration prefix is `lixin.capability.oss`. `enabled` defaults to `false`; when it is `true`, `provider`, `endpoint`, `bucket-name`, `access-key-id`, and `access-key-secret` are required. OSS V1 only supports `provider: aliyun`.
+
+```yaml
+lixin:
+  capability:
+    oss:
+      enabled: true
+      provider: aliyun
+      endpoint: https://oss-cn-hangzhou.aliyuncs.com
+      bucket-name: example-bucket
+      access-key-id: ${ALIYUN_OSS_ACCESS_KEY_ID}
+      access-key-secret: ${ALIYUN_OSS_ACCESS_KEY_SECRET}
+      default-expire-seconds: 3600
+      object-key-prefix: dev/
+```
+
+`object-key-prefix` is only an environment-level common prefix such as `dev/`, `test/`, or `prod/`. Business projects must still pass the `objectKey` and own business directory strategy outside the starter.
 
 ## Mini Program Usage
 
@@ -271,6 +315,48 @@ public class RefundNotifyExample {
 }
 ```
 
+## OSS Usage
+
+```java
+import com.lixin.capability.oss.client.LixinOssClient;
+import com.lixin.capability.oss.dto.DeleteObjectRequest;
+import com.lixin.capability.oss.dto.GenerateUrlRequest;
+import com.lixin.capability.oss.dto.GenerateUrlResponse;
+import com.lixin.capability.oss.dto.UploadBytesRequest;
+import com.lixin.capability.oss.dto.UploadObjectResponse;
+
+public class OssExample {
+    private final LixinOssClient lixinOssClient;
+
+    public OssExample(LixinOssClient lixinOssClient) {
+        this.lixinOssClient = lixinOssClient;
+    }
+
+    public UploadObjectResponse upload(byte[] bytes, String objectKey) {
+        UploadBytesRequest request = new UploadBytesRequest();
+        request.setObjectKey(objectKey);
+        request.setBytes(bytes);
+        request.setContentType("image/png");
+        return lixinOssClient.uploadBytes(request);
+    }
+
+    public GenerateUrlResponse generateUrl(String objectKey) {
+        GenerateUrlRequest request = new GenerateUrlRequest();
+        request.setObjectKey(objectKey);
+        request.setExpireSeconds(600L);
+        return lixinOssClient.generateUrl(request);
+    }
+
+    public void delete(String objectKey) {
+        DeleteObjectRequest request = new DeleteObjectRequest();
+        request.setObjectKey(objectKey);
+        lixinOssClient.deleteObject(request);
+    }
+}
+```
+
+`LixinOssClient.uploadInputStream` accepts an `InputStream`, required `objectKey`, positive `contentLength`, optional `contentType`, and optional `Map<String, String>` metadata. `uploadBytes` wraps bytes into an input stream internally. `generateUrl` creates an Aliyun OSS signed URL; it does not assemble a public URL from a base URL.
+
 ## Error Handling Rules
 
 - Configuration errors throw `WechatCapabilityConfigException`.
@@ -281,6 +367,10 @@ public class RefundNotifyExample {
 - Protocol or response parsing failures throw `WechatCapabilityParseException`.
 - The starter does not silently fall back, swallow exceptions, or report fake success.
 - SDK `null` responses and missing required response fields are exposed as exceptions.
+- OSS configuration errors throw `OssCapabilityConfigException`.
+- OSS invalid input throws `OssCapabilityInvalidRequestException`.
+- Aliyun OSS SDK call failures throw `OssCapabilityApiException`.
+- OSS SDK `null` responses, empty signed URLs, missing ETag, or missing critical response fields throw `OssCapabilityParseException`.
 
 ## Raw Response Semantics
 
@@ -289,6 +379,7 @@ public class RefundNotifyExample {
 - The starter does not synthesize `OK`, `rawResponse`, or `rawPlaintext` values.
 - Notify `rawPlaintext` is the plaintext notification content, or its serialized representation, after SDK signature verification and decryption.
 - `rawPlaintext` is intended for troubleshooting and audit. Business decisions should use structured fields such as `outTradeNo`, `tradeState`, `outRefundNo`, and `refundStatus`.
+- OSS `UploadObjectResponse.rawResponse` is only populated from real Aliyun OSS SDK response information when the SDK exposes it. It is not synthesized.
 
 ## Auto Configuration
 
@@ -298,10 +389,13 @@ public class RefundNotifyExample {
 - Missing required configuration fails explicitly at startup or client invocation.
 - Spring Boot 2.x `spring.factories` auto configuration is supported.
 - Default beans use `@ConditionalOnMissingBean`, so business projects can provide custom beans to override the defaults.
+- `lixin.capability.oss.enabled=true` registers `LixinOssClient` for Aliyun OSS.
+- `lixin.capability.oss.enabled=false` or missing does not register OSS beans.
+- OSS V1 rejects any provider other than `aliyun`.
 
 ## Business Boundary
 
-Business projects decide which openId to use, which trade or refund number to use, where the amount comes from, and how to handle business state after payment or refund. This starter only owns generic WeChat request building, response mapping, notify parsing, and exception boundaries.
+Business projects decide which openId to use, which trade or refund number to use, where the amount comes from, which OSS objectKey to use, where file records are stored, and how to handle business state after payment, refund, upload, deletion, or URL generation. This starter only owns generic WeChat request building, OSS SDK calls, response mapping, notify parsing, signed URL generation, and exception boundaries.
 
 ## Version Suggestion
 

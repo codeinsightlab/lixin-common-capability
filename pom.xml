@@ -15,6 +15,7 @@
     <modules>
         <module>lixin-common-capability-core</module>
         <module>lixin-common-capability-wechat-spring-boot-starter</module>
+        <module>lixin-common-capability-oss-spring-boot-starter</module>
         <module>lixin-common-capability-all-spring-boot-starter</module>
     </modules>
 
@@ -26,6 +27,7 @@
         <spring.boot.version>2.7.18</spring.boot.version>
         <wx.sdk.version>4.6.0</wx.sdk.version>
         <wechatpay.java.version>0.2.17</wechatpay.java.version>
+        <aliyun.oss.version>3.17.4</aliyun.oss.version>
     </properties>
 
     <dependencyManagement>

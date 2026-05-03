@@ -1,0 +1,2 @@
+org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
+com.lixin.capability.oss.autoconfigure.LixinOssAutoConfiguration
