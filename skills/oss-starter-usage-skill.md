@@ -30,7 +30,7 @@ Use the all-starter only when the project wants all current starters:
 </dependency>
 ```
 
-The all-starter currently aggregates WeChat and OSS.
+The all-starter currently aggregates WeChat, OSS, Netease IM, and Weather starters.
 
 ## Configuration
 

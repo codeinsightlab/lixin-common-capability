@@ -45,7 +45,7 @@ Rules:
 
 - Prefer the on-demand WeChat starter for business projects that only need WeChat.
 - The all-starter is only an aggregation package.
-- In `v0.1.0-wechat`, the all-starter currently aggregates only the WeChat starter.
+- The all-starter currently aggregates WeChat, OSS, Netease IM, and Weather starters.
 - Do not import the old `lixin-common-capability-spring-boot-starter`.
 
 ## Configuration Rules

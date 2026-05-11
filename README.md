@@ -2,7 +2,7 @@
 
 `lixin-common-capability` is a Spring Boot 2.x compatible common capability starter project.
 
-V1 focuses on generic WeChat capability boundaries, Aliyun OSS basic gateway capability, and Netease IM account gateway plus callback signature verification. Business projects decide when to call these clients and how to handle their own domain state.
+V1 focuses on generic WeChat capability boundaries, Aliyun OSS basic gateway capability, Netease IM account gateway plus callback signature verification, and Amap current weather query capability. Business projects decide when to call these clients and how to handle their own domain state.
 
 ## V1 Supported Capabilities
 
@@ -22,6 +22,7 @@ V1 focuses on generic WeChat capability boundaries, Aliyun OSS basic gateway cap
 - Netease IM account profile update
 - Netease IM token refresh
 - Netease IM callback signature verification
+- Amap current weather query
 
 ## Explicitly Not Supported In V1
 
@@ -59,6 +60,13 @@ V1 focuses on generic WeChat capability boundaries, Aliyun OSS basic gateway cap
 - IM event persistence or event dispatch
 - Order chat relation handling
 - Business rules such as `conversationId = from + "|1|" + to`
+- Weather auto location
+- Weather geocode or reverse geocode
+- Multi-city management
+- Weather forecast
+- Hourly weather forecast
+- Weather business dashboard APIs such as `/bigdatadashboard/weather`
+- MES dashboard integration or frontend integration
 
 ## Maven Dependency
 
@@ -94,6 +102,16 @@ Use the Netease IM starter when the project only needs Netease IM account gatewa
 </dependency>
 ```
 
+Use the Weather starter when the project only needs current weather query capability:
+
+```xml
+<dependency>
+    <groupId>com.lixin</groupId>
+    <artifactId>lixin-common-capability-weather-spring-boot-starter</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+</dependency>
+```
+
 Use the all-starter when the project wants to import every capability starter provided by this project:
 
 ```xml
@@ -104,7 +122,7 @@ Use the all-starter when the project wants to import every capability starter pr
 </dependency>
 ```
 
-The all-starter is only an aggregation package. It currently aggregates the WeChat starter, OSS starter, and Netease IM starter. The current WeChat, OSS, and Netease IM configuration prefixes, usage examples, and error handling rules remain valid.
+The all-starter is only an aggregation package. It currently aggregates the WeChat starter, OSS starter, Netease IM starter, and Weather starter. The current WeChat, OSS, Netease IM, and Weather configuration prefixes, usage examples, and error handling rules remain valid.
 
 ## Configuration Example
 
@@ -173,6 +191,24 @@ lixin:
 ```
 
 Do not add business fields such as `userId`, `sysUser`, `tokenStorage`, `order`, or `conversation` to Netease IM starter configuration.
+
+The Weather configuration prefix is `lixin.capability.weather`. `enabled` defaults to `false`; when it is `true`, `provider`, `amap.key`, `amap.city-code`, `amap.extensions`, and positive timeout/cache settings are validated. Weather V1 only supports `provider: amap` and `amap.extensions: base`.
+
+```yaml
+lixin:
+  capability:
+    weather:
+      enabled: true
+      provider: amap
+      amap:
+        key: ${AMAP_WEATHER_KEY:}
+        city-code: 330100
+        extensions: base
+        cache-minutes: 10
+        timeout-millis: 5000
+```
+
+`AMAP_WEATHER_KEY` is the Amap Web Service API key. Do not hardcode it in source code or tests. `city-code` is an Amap city adcode such as Hangzhou `330100`. `cache-minutes` controls local in-memory cache TTL for `provider + cityCode`; default is `10`. Weather V1 is a public capability only and does not expose MES dashboard APIs or frontend behavior.
 
 ## Mini Program Usage
 
@@ -453,6 +489,30 @@ public class NeteaseImExample {
 
 `accountId` is provided by the business project. The starter does not know whether it equals a business user ID, does not persist IM tokens, and does not create conversation, message, event, order, or user-binding records. `VerifyImCallbackResponse.verified=false` is the expected result for signature mismatch; missing callback parameters still throw an invalid request exception.
 
+## Weather Usage
+
+```java
+import com.lixin.capability.weather.dto.WeatherQuery;
+import com.lixin.capability.weather.dto.WeatherResult;
+import com.lixin.capability.weather.service.WeatherService;
+
+public class WeatherExample {
+    private final WeatherService weatherService;
+
+    public WeatherExample(WeatherService weatherService) {
+        this.weatherService = weatherService;
+    }
+
+    public WeatherResult currentWeather() {
+        WeatherQuery query = new WeatherQuery();
+        query.setCityCode("330100");
+        return weatherService.getCurrentWeather(query);
+    }
+}
+```
+
+`WeatherService.getCurrentWeather` returns a unified `WeatherResult` and does not expose the Amap raw JSON. Business projects decide how to map the result into their own Controller response, dashboard DTO, cache strategy, or error display. The starter does not return `AjaxResult`.
+
 ## Error Handling Rules
 
 - Configuration errors throw `WechatCapabilityConfigException`.
@@ -472,6 +532,11 @@ public class NeteaseImExample {
 - Netease IM HTTP failures or provider failure codes throw `NeteaseImApiException`.
 - Netease IM empty responses, missing `accountId`, missing required `token`, or parse failures throw `NeteaseImParseException`.
 - Netease IM callback algorithm failures throw `NeteaseImCallbackVerifyException`; signature mismatch returns `verified=false`.
+- Weather startup configuration errors throw `WeatherConfigException`.
+- Weather invalid input can throw `WeatherInvalidRequestException`.
+- Amap HTTP failures throw `WeatherApiException`.
+- Amap response parse or protocol failures throw `WeatherParseException`.
+- `WeatherService.getCurrentWeather` returns `success=false` for disabled capability, missing Amap key, unsupported provider, unavailable provider, or provider exceptions; it does not return fake success.
 
 ## Raw Response Semantics
 
@@ -482,6 +547,7 @@ public class NeteaseImExample {
 - `rawPlaintext` is intended for troubleshooting and audit. Business decisions should use structured fields such as `outTradeNo`, `tradeState`, `outRefundNo`, and `refundStatus`.
 - OSS `UploadObjectResponse.rawResponse` is only populated from real Aliyun OSS SDK response information when the SDK exposes it. It is not synthesized.
 - Netease IM `rawResponse` stores the real HTTP response body returned by Netease IM server APIs. It is not synthesized. Callback verification responses do not fabricate raw payload fields.
+- Weather V1 does not expose Amap raw JSON through `WeatherResult`.
 
 ## Auto Configuration
 
@@ -497,10 +563,14 @@ public class NeteaseImExample {
 - `lixin.capability.netease.im.enabled=true` registers `NeteaseImAccountClient` and `NeteaseImCallbackVerifier`.
 - `lixin.capability.netease.im.enabled=false` or missing does not register Netease IM beans.
 - Missing Netease IM `app-key`, `app-secret`, blank `base-url`, or invalid `timeout-millis` fails explicitly at startup.
+- `lixin.capability.weather.enabled=true` registers `WeatherService`, `AmapWeatherProvider`, `AmapWeatherParser`, and local `WeatherCache`.
+- `lixin.capability.weather.enabled=false` or missing does not register Weather beans.
+- Weather V1 rejects any provider other than `amap` and any Amap extension other than `base`.
+- Missing Weather `amap.key`, blank `amap.city-code`, blank `base-url`, negative `cache-minutes`, or invalid `timeout-millis` fails explicitly at startup.
 
 ## Business Boundary
 
-Business projects decide which openId to use, which trade or refund number to use, where the amount comes from, which OSS objectKey to use, which Netease IM `accountId` to use, where IM tokens are stored, and how to handle business state after payment, refund, upload, deletion, URL generation, IM account operations, or callback verification. This starter only owns generic WeChat request building, OSS SDK calls, Netease IM HTTP API calls, response mapping, notify or callback verification, signed URL generation, and exception boundaries.
+Business projects decide which openId to use, which trade or refund number to use, where the amount comes from, which OSS objectKey to use, which Netease IM `accountId` to use, where IM tokens are stored, which weather city code to query, and how to handle business state after payment, refund, upload, deletion, URL generation, IM account operations, callback verification, or weather query. This starter only owns generic WeChat request building, OSS SDK calls, Netease IM HTTP API calls, Amap current weather API calls, response mapping, notify or callback verification, signed URL generation, local weather cache, and exception boundaries.
 
 ## Version Suggestion
 

@@ -291,7 +291,40 @@ OSS V1 当前不支持：
 
 不得在 README 或 Skill 中把上述不支持能力描述为已支持能力。
 
-## 12. 后续能力新增规则
+## 12. 天气 V1 当前边界
+
+天气 V1 当前支持能力：
+
+- `WeatherService.getCurrentWeather`
+- 高德天气 Web API 实况天气查询
+- `provider + cityCode` 本地缓存
+
+天气 V1 当前只支持：
+
+- 高德 `amap`
+- `extensions=base`
+- 业务方传入或配置 `city-code`
+- 配置读取 `AMAP_WEATHER_KEY`
+- `WeatherResult` 统一结果
+
+天气 V1 当前不支持：
+
+- 自动定位
+- 经纬度反查
+- 多城市管理
+- 未来天气预报
+- 小时级预报
+- 多供应商复杂路由
+- `/bigdatadashboard/weather`
+- MES dashboard 业务接口
+- 前端集成
+- Controller 默认业务处理
+- AjaxResult 返回
+- 第三方原始 JSON 直接暴露给业务层
+
+不得在 README 或 Skill 中把上述不支持能力描述为已支持能力。
+
+## 13. 后续能力新增规则
 
 新增网易云信、短信等能力时，必须按以下顺序执行：
 
@@ -306,7 +339,7 @@ OSS V1 当前不支持：
 
 新增能力时必须继续遵守业务边界规则、错误处理硬约束、README 同步规则和 Skill 同步硬约束。
 
-## 13. 文档风格
+## 14. 文档风格
 
 项目文档必须使用 Markdown。
 
@@ -319,7 +352,7 @@ OSS V1 当前不支持：
 - 不写长篇产品愿景。
 - 不把未来规划能力写成已支持能力。
 
-## 14. 本文件变更规则
+## 15. 本文件变更规则
 
 修改 `AGENTS.md` 时必须保持规则强度不降低。
 
