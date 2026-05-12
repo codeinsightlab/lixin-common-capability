@@ -48,6 +48,16 @@ Rules:
 - The all-starter currently aggregates WeChat, OSS, Netease IM, and Weather starters.
 - Do not import the old `lixin-common-capability-spring-boot-starter`.
 
+## Auto Configuration
+
+The WeChat starter supports Spring Boot 3/4 auto configuration through:
+
+```text
+META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports
+```
+
+It also keeps `META-INF/spring.factories` for Spring Boot 2.x compatibility. Do not add a long-term business-project `@Import` bridge for `LixinWechatAutoConfiguration`.
+
 ## Configuration Rules
 
 Use the prefix `lixin.capability.wechat`.
@@ -471,6 +481,7 @@ After integrating this starter into a business project, AI must check:
 - Business state is not delegated to the starter.
 - Exceptions are handled explicitly and are not converted to default success.
 - The configuration prefix is `lixin.capability.wechat`.
+- Spring Boot 3/4 projects rely on the starter's `AutoConfiguration.imports`; do not keep a permanent `@Import` bridge.
 - No service provider or ecommerce/commerce pay fields were added.
 - No `subMchId`, `spMchId`, or `subAppId` fields were added.
 - No silent fallback was added for critical fields.

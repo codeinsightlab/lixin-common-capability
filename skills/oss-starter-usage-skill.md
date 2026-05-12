@@ -32,6 +32,16 @@ Use the all-starter only when the project wants all current starters:
 
 The all-starter currently aggregates WeChat, OSS, Netease IM, and Weather starters.
 
+## Auto Configuration
+
+The OSS starter supports Spring Boot 3/4 auto configuration through:
+
+```text
+META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports
+```
+
+It also keeps `META-INF/spring.factories` for Spring Boot 2.x compatibility. Do not add a long-term business-project `@Import` bridge for `LixinOssAutoConfiguration`.
+
 ## Configuration
 
 Prefix: `lixin.capability.oss`

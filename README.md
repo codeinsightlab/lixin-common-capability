@@ -1,6 +1,6 @@
 # lixin-common-capability
 
-`lixin-common-capability` is a Spring Boot 2.x compatible common capability starter project.
+`lixin-common-capability` is a Spring Boot 2.x, 3.x, and 4.x compatible common capability starter project.
 
 V1 focuses on generic WeChat capability boundaries, Aliyun OSS basic gateway capability, Netease IM account gateway plus callback signature verification, and Amap current weather query capability. Business projects decide when to call these clients and how to handle their own domain state.
 
@@ -123,6 +123,22 @@ Use the all-starter when the project wants to import every capability starter pr
 ```
 
 The all-starter is only an aggregation package. It currently aggregates the WeChat starter, OSS starter, Netease IM starter, and Weather starter. The current WeChat, OSS, Netease IM, and Weather configuration prefixes, usage examples, and error handling rules remain valid.
+
+## Auto Configuration Compatibility
+
+Each capability starter supports Spring Boot 3/4 auto configuration through:
+
+```text
+META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports
+```
+
+Each line in that file is the fully qualified auto configuration class name for the starter. The starters also keep:
+
+```text
+META-INF/spring.factories
+```
+
+`spring.factories` is retained for Spring Boot 2.x compatibility. Business projects must not add long-term `@Import` bridge classes for these starters.
 
 ## Configuration Example
 
@@ -555,7 +571,8 @@ public class WeatherExample {
 - `subscribe.enabled=true` registers `WechatSubscribeClient` and requires a `WxMaService`.
 - `pay.enabled=true` registers `WechatPayClient` and `WechatPayNotifyClient`.
 - Missing required configuration fails explicitly at startup or client invocation.
-- Spring Boot 2.x `spring.factories` auto configuration is supported.
+- Spring Boot 3/4 `AutoConfiguration.imports` auto configuration is supported by every capability starter.
+- Spring Boot 2.x `spring.factories` auto configuration is retained for compatibility.
 - Default beans use `@ConditionalOnMissingBean`, so business projects can provide custom beans to override the defaults.
 - `lixin.capability.oss.enabled=true` registers `LixinOssClient` for Aliyun OSS.
 - `lixin.capability.oss.enabled=false` or missing does not register OSS beans.
