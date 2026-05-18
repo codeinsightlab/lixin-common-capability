@@ -193,6 +193,7 @@ README 和 Skill 的关系：
 - `WechatMiniappClient.code2Session`
 - `WechatMiniappClient.getPhoneNumber`
 - `WechatMiniappClient.getAccessToken`
+- `WechatMiniappClient.createWxaCodeUnlimit`
 - `WechatSubscribeClient.send`
 - `WechatPayClient.jsapiPrepay`
 - `WechatPayClient.refund`
@@ -213,6 +214,9 @@ README 和 Skill 的关系：
 - 交易流水
 - 回调业务幂等
 - Controller 默认业务处理
+- 小程序码 scene 业务规则生成
+- 小程序码扫码后的业务加入流程
+- invite / family / baby 业务状态
 
 不得在 README 或 Skill 中把上述不支持能力描述为已支持能力。
 

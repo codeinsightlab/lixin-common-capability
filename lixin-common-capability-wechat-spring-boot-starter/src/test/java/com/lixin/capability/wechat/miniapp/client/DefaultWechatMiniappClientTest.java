@@ -11,8 +11,15 @@ import com.lixin.capability.wechat.miniapp.dto.Code2SessionRequest;
 import com.lixin.capability.wechat.miniapp.dto.Code2SessionResponse;
 import com.lixin.capability.wechat.miniapp.dto.PhoneNumberRequest;
 import com.lixin.capability.wechat.miniapp.dto.PhoneNumberResponse;
+import com.lixin.capability.wechat.miniapp.dto.WxaCodeUnlimitRequest;
+import com.lixin.capability.wechat.miniapp.dto.WxaCodeUnlimitResponse;
+import me.chanjar.weixin.common.error.WxError;
 import me.chanjar.weixin.common.error.WxErrorException;
 import org.junit.jupiter.api.Test;
+
+import java.io.File;
+import java.nio.file.Files;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -220,5 +227,159 @@ class DefaultWechatMiniappClientTest {
         assertThatThrownBy(client::getAccessToken)
                 .isInstanceOf(WechatCapabilityApiException.class)
                 .hasMessageContaining("access_token");
+    }
+
+    @Test
+    void createWxaCodeUnlimitRejectsBlankScene() {
+        WxaCodeUnlimitRequest request = validWxaCodeRequest();
+        request.setScene(" ");
+
+        assertThatThrownBy(() -> client.createWxaCodeUnlimit(request))
+                .isInstanceOf(WechatCapabilityInvalidRequestException.class)
+                .hasMessageContaining("scene");
+    }
+
+    @Test
+    void createWxaCodeUnlimitRejectsLongScene() {
+        WxaCodeUnlimitRequest request = validWxaCodeRequest();
+        request.setScene("123456789012345678901234567890123");
+
+        assertThatThrownBy(() -> client.createWxaCodeUnlimit(request))
+                .isInstanceOf(WechatCapabilityInvalidRequestException.class)
+                .hasMessageContaining("scene length");
+    }
+
+    @Test
+    void createWxaCodeUnlimitRejectsLeadingSlashPage() {
+        WxaCodeUnlimitRequest request = validWxaCodeRequest();
+        request.setPage("/pages/baby/collaboration-invite");
+
+        assertThatThrownBy(() -> client.createWxaCodeUnlimit(request))
+                .isInstanceOf(WechatCapabilityInvalidRequestException.class)
+                .hasMessageContaining("page must not start");
+    }
+
+    @Test
+    void createWxaCodeUnlimitRejectsPageWithQuery() {
+        WxaCodeUnlimitRequest request = validWxaCodeRequest();
+        request.setPage("pages/baby/collaboration-invite?inviteToken=abc");
+
+        assertThatThrownBy(() -> client.createWxaCodeUnlimit(request))
+                .isInstanceOf(WechatCapabilityInvalidRequestException.class)
+                .hasMessageContaining("query");
+    }
+
+    @Test
+    void createWxaCodeUnlimitRejectsInvalidEnvVersion() {
+        WxaCodeUnlimitRequest request = validWxaCodeRequest();
+        request.setEnvVersion("gray");
+
+        assertThatThrownBy(() -> client.createWxaCodeUnlimit(request))
+                .isInstanceOf(WechatCapabilityInvalidRequestException.class)
+                .hasMessageContaining("envVersion");
+    }
+
+    @Test
+    void createWxaCodeUnlimitCallsSdkAndMapsImageBytes() throws Exception {
+        byte[] pngBytes = new byte[] {(byte) 0x89, 0x50, 0x4e, 0x47};
+        File file = Files.createTempFile("wxa-code", ".png").toFile();
+        Files.write(file.toPath(), pngBytes);
+        AtomicReference<WxaCodeUnlimitRequest> sdkRequest = new AtomicReference<>();
+        DefaultWechatMiniappClient codeClient = new DefaultWechatMiniappClient(wxMaService, request -> {
+            sdkRequest.set(request);
+            return file;
+        });
+        WxaCodeUnlimitRequest request = validWxaCodeRequest();
+        request.setCheckPath(false);
+        request.setEnvVersion("trial");
+        request.setWidth(280);
+
+        WxaCodeUnlimitResponse response = codeClient.createWxaCodeUnlimit(request);
+
+        assertThat(sdkRequest.get().getScene()).isEqualTo("invite-token");
+        assertThat(sdkRequest.get().getPage()).isEqualTo("pages/baby/collaboration-invite");
+        assertThat(sdkRequest.get().getCheckPath()).isFalse();
+        assertThat(sdkRequest.get().getEnvVersion()).isEqualTo("trial");
+        assertThat(sdkRequest.get().getWidth()).isEqualTo(280);
+        assertThat(response.getBytes()).isEqualTo(pngBytes);
+        assertThat(response.getContentType()).isEqualTo("image/png");
+        assertThat(response.getBase64()).isEqualTo("iVBORw==");
+    }
+
+    @Test
+    void createWxaCodeUnlimitNormalizesRequestBeforeSdkCall() throws Exception {
+        byte[] pngBytes = new byte[] {(byte) 0x89, 0x50, 0x4e, 0x47};
+        File file = Files.createTempFile("wxa-code", ".png").toFile();
+        Files.write(file.toPath(), pngBytes);
+        AtomicReference<WxaCodeUnlimitRequest> sdkRequest = new AtomicReference<>();
+        DefaultWechatMiniappClient codeClient = new DefaultWechatMiniappClient(wxMaService, request -> {
+            sdkRequest.set(request);
+            return file;
+        });
+        WxaCodeUnlimitRequest request = new WxaCodeUnlimitRequest();
+        request.setScene(" invite-token ");
+        request.setPage(" pages/baby/collaboration-invite ");
+
+        codeClient.createWxaCodeUnlimit(request);
+
+        assertThat(sdkRequest.get().getScene()).isEqualTo("invite-token");
+        assertThat(sdkRequest.get().getPage()).isEqualTo("pages/baby/collaboration-invite");
+        assertThat(sdkRequest.get().getCheckPath()).isTrue();
+        assertThat(sdkRequest.get().getEnvVersion()).isEqualTo("release");
+        assertThat(sdkRequest.get().getWidth()).isEqualTo(430);
+    }
+
+    @Test
+    void createWxaCodeUnlimitConvertsWxErrorAndDoesNotExposeSceneToken() {
+        String sceneToken = "secret-invite-token";
+        DefaultWechatMiniappClient codeClient = new DefaultWechatMiniappClient(wxMaService, request -> {
+            throw new WxErrorException(wxError(41030, "invalid page"));
+        });
+        WxaCodeUnlimitRequest request = validWxaCodeRequest();
+        request.setScene(sceneToken);
+
+        assertThatThrownBy(() -> codeClient.createWxaCodeUnlimit(request))
+                .isInstanceOf(WechatCapabilityApiException.class)
+                .hasMessageContaining("createWxaCodeUnlimit")
+                .hasMessageContaining("page=pages/baby/collaboration-invite")
+                .hasMessageContaining("sceneLength=19")
+                .hasMessageContaining("envVersion=release")
+                .hasMessageContaining("checkPath=true")
+                .hasMessageNotContaining(sceneToken)
+                .satisfies(throwable -> {
+                    WechatCapabilityApiException exception = (WechatCapabilityApiException) throwable;
+                    assertThat(exception.getCode()).isEqualTo("41030");
+                    assertThat(exception.getRawBody()).contains("41030").contains("invalid page");
+                });
+    }
+
+    @Test
+    void createWxaCodeUnlimitWrapsRuntimeSdkFailureWithContext() {
+        DefaultWechatMiniappClient codeClient = new DefaultWechatMiniappClient(wxMaService, request -> {
+            throw new IllegalStateException("sdk transport failed");
+        });
+        WxaCodeUnlimitRequest request = validWxaCodeRequest();
+
+        assertThatThrownBy(() -> codeClient.createWxaCodeUnlimit(request))
+                .isInstanceOf(WechatCapabilityApiException.class)
+                .hasMessageContaining("SDK call failed")
+                .hasMessageContaining("sceneLength=12");
+    }
+
+    private WxaCodeUnlimitRequest validWxaCodeRequest() {
+        WxaCodeUnlimitRequest request = new WxaCodeUnlimitRequest();
+        request.setScene("invite-token");
+        request.setPage("pages/baby/collaboration-invite");
+        request.setCheckPath(true);
+        request.setEnvVersion("release");
+        request.setWidth(430);
+        return request;
+    }
+
+    private WxError wxError(int code, String message) {
+        WxError error = new WxError();
+        error.setErrorCode(code);
+        error.setErrorMsg(message);
+        return error;
     }
 }

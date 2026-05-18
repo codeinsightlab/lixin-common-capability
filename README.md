@@ -9,6 +9,7 @@ V1 focuses on generic WeChat capability boundaries, Aliyun OSS basic gateway cap
 - Mini Program `code2Session`
 - Mini Program phone number parsing
 - Mini Program `access_token` access
+- Mini Program unlimited code generation through `getwxacodeunlimit`
 - Subscribe message sending
 - WeChat Pay normal merchant JSAPI prepay
 - WeChat Pay normal merchant refund request
@@ -39,6 +40,9 @@ V1 focuses on generic WeChat capability boundaries, Aliyun OSS basic gateway cap
 - Business notify idempotency handling
 - Controller examples as a default business implementation
 - Admin pages
+- Mini Program code scene business token generation
+- Mini Program code scan landing business flow
+- Invite, family, baby, or member business state handling
 - Multi payment channel SPI
 - OSS multi provider SPI
 - Tencent COS, MinIO, Qiniu, or other OSS providers
@@ -234,6 +238,8 @@ import com.lixin.capability.wechat.miniapp.dto.Code2SessionRequest;
 import com.lixin.capability.wechat.miniapp.dto.Code2SessionResponse;
 import com.lixin.capability.wechat.miniapp.dto.PhoneNumberRequest;
 import com.lixin.capability.wechat.miniapp.dto.PhoneNumberResponse;
+import com.lixin.capability.wechat.miniapp.dto.WxaCodeUnlimitRequest;
+import com.lixin.capability.wechat.miniapp.dto.WxaCodeUnlimitResponse;
 
 public class MiniappExample {
     private final WechatMiniappClient wechatMiniappClient;
@@ -257,8 +263,22 @@ public class MiniappExample {
     public String getAccessToken() {
         return wechatMiniappClient.getAccessToken();
     }
+
+    public WxaCodeUnlimitResponse createInviteCode(String scene) {
+        WxaCodeUnlimitRequest request = new WxaCodeUnlimitRequest();
+        request.setScene(scene);
+        request.setPage("pages/baby/collaboration-invite");
+        request.setCheckPath(false);
+        request.setEnvVersion("trial");
+        request.setWidth(430);
+        return wechatMiniappClient.createWxaCodeUnlimit(request);
+    }
 }
 ```
+
+`createWxaCodeUnlimit` uses the Mini Program SDK instead of handwritten HTTP. `scene` and `page` are required. `scene` must not be blank and must not exceed 32 characters. `page` must not start with `/` and must not contain query or fragment text. `envVersion` supports `release`, `trial`, and `develop`; blank values default to `release`. `checkPath` defaults to `true`, and `width` defaults to `430`.
+
+The response returns PNG bytes, `contentType=image/png`, and Base64 text. WeChat SDK failures are converted to `WechatCapabilityApiException` with WeChat error code and raw error details when available. The starter does not log or expose access tokens, app secrets, or full business scene tokens. Business projects remain responsible for generating scene values, storing invite state, handling scanned users, and converting bytes/Base64 into their own API response shape.
 
 ## Subscribe Message Usage
 

@@ -2,7 +2,7 @@
 
 This Skill is for external AI tools such as Codex, GPT, or project agents that need to integrate WeChat capabilities into a business Spring Boot project.
 
-When a business project needs WeChat Mini Program login, phone number parsing, subscribe messages, normal merchant JSAPI payment, refund requests, payment notify parsing, or refund notify parsing, use this starter first. Do not reimplement WeChat SDK initialization, WeChat Pay signature verification, notify decryption, response parsing, or exception classification in the business project.
+When a business project needs WeChat Mini Program login, phone number parsing, Mini Program code generation, subscribe messages, normal merchant JSAPI payment, refund requests, payment notify parsing, or refund notify parsing, use this starter first. Do not reimplement WeChat SDK initialization, Mini Program code HTTP calls, WeChat Pay signature verification, notify decryption, response parsing, or exception classification in the business project.
 
 Do not scan the starter source code as the default integration path. Use this Skill, the public starter dependency, the configuration prefix, and the exposed clients.
 
@@ -13,6 +13,7 @@ Use this Skill when the business project needs:
 - WeChat Mini Program `code2Session`
 - WeChat Mini Program phone number parsing
 - WeChat Mini Program `access_token` access
+- WeChat Mini Program unlimited code generation through `getwxacodeunlimit`
 - Subscribe message sending
 - WeChat Pay normal merchant JSAPI prepay
 - WeChat Pay normal merchant refund request
@@ -105,6 +106,7 @@ Configuration rules:
 - `code2Session(Code2SessionRequest request)`
 - `getPhoneNumber(PhoneNumberRequest request)`
 - `getAccessToken()`
+- `createWxaCodeUnlimit(WxaCodeUnlimitRequest request)`
 
 ### `WechatSubscribeClient`
 
@@ -180,6 +182,56 @@ public class WechatPhoneService {
     }
 }
 ```
+
+### Mini Program Code: `getwxacodeunlimit`
+
+```java
+import com.lixin.capability.wechat.miniapp.client.WechatMiniappClient;
+import com.lixin.capability.wechat.miniapp.dto.WxaCodeUnlimitRequest;
+import com.lixin.capability.wechat.miniapp.dto.WxaCodeUnlimitResponse;
+
+public class WechatMiniappCodeService {
+    private final WechatMiniappClient wechatMiniappClient;
+
+    public WechatMiniappCodeService(WechatMiniappClient wechatMiniappClient) {
+        this.wechatMiniappClient = wechatMiniappClient;
+    }
+
+    public String createCodeBase64(String scene) {
+        WxaCodeUnlimitRequest request = new WxaCodeUnlimitRequest();
+        request.setScene(scene);
+        request.setPage("pages/baby/collaboration-invite");
+        request.setCheckPath(false);
+        request.setEnvVersion("trial");
+        request.setWidth(430);
+
+        WxaCodeUnlimitResponse response = wechatMiniappClient.createWxaCodeUnlimit(request);
+        return response.getBase64();
+    }
+}
+```
+
+Request rules:
+
+- `scene` is required and must not exceed 32 characters.
+- `page` is required, must not start with `/`, and must not contain query or fragment text.
+- `envVersion` supports `release`, `trial`, and `develop`; blank values default to `release`.
+- `checkPath` defaults to `true` when omitted.
+- `width` defaults to `430` when omitted.
+
+Response rules:
+
+- Success returns PNG bytes, `contentType=image/png`, and Base64 text.
+- WeChat SDK failures are converted to `WechatCapabilityApiException` with WeChat error code and raw error details when available.
+- The starter does not expose or log access tokens, app secrets, or full business scene tokens.
+
+Business project responsibility:
+
+- Generate the business scene value, such as an invite token.
+- Decide the scanned page and Mini Program version.
+- Persist and validate invite, family, baby, member, or other business state.
+- Convert bytes/Base64 into the business API response format.
+- Handle scanned users and join/confirm flows outside the starter.
 
 ### Subscribe Message Sending
 
@@ -401,6 +453,7 @@ The starter is responsible for:
 
 - WeChat SDK initialization
 - WeChat API calls
+- WeChat Mini Program code generation through SDK APIs
 - WeChat Pay notify signature verification
 - Notify decryption
 - Response parsing
@@ -412,6 +465,7 @@ The business project is responsible for:
 - User registration and login
 - Binding `openId` to the user
 - Phone number binding
+- Mini Program code scene generation and scan landing behavior
 - Order creation
 - Payment amount calculation
 - Updating the order after payment success
@@ -427,6 +481,8 @@ When using this starter in a business project, AI must not:
 - Reinitialize the WeChat SDK
 - Handwrite WeChat Pay notify signature verification or decryption
 - Copy old RuoYi project WeChat Manager or Service code
+- Handwrite `getwxacodeunlimit` HTTP calls in the business project
+- Put invite, family, baby, member, or scanned-user join logic into the starter
 - Put order state logic into the starter
 - Make the starter write to the database
 - Make the starter handle wallet, member, or transaction ledger logic
@@ -440,7 +496,7 @@ When using this starter in a business project, AI must not:
 
 - `WechatCapabilityConfigException`: configuration error, such as missing `appId`, `secret`, `mchId`, certificate path, `apiV3Key`, or SDK initialization failure.
 - `WechatCapabilityInvalidRequestException`: caller input error, such as blank `code`, blank `outTradeNo`, invalid amount, or missing notify headers.
-- `WechatCapabilityApiException`: WeChat SDK or API call failure.
+- `WechatCapabilityApiException`: WeChat SDK or API call failure, including Mini Program code generation failures with WeChat error code and raw error details when available.
 - `WechatCapabilityNotifyVerifyException`: WeChat Pay payment or refund notify signature verification failure.
 - `WechatCapabilityNotifyDecryptException`: notify decryption failure.
 - `WechatCapabilityParseException`: missing required response fields, malformed notify plaintext, or protocol parsing failure.
@@ -465,6 +521,7 @@ Business guidance:
 |---|---|---|---|
 | Mini Program login | `WechatMiniappClient` | Call `code2Session` and parse `openId` / `sessionKey` | Register or find user, bind `openId`, issue login token |
 | Phone number parsing | `WechatMiniappClient` | Call `getPhoneNumber` and parse phone fields | Bind phone number, handle uniqueness and conflicts |
+| Mini Program code | `WechatMiniappClient` | Call `createWxaCodeUnlimit`, validate request fields, return PNG bytes/Base64, and classify WeChat errors | Generate scene tokens, choose page/version, persist invite state, and handle scanned users |
 | Subscribe message | `WechatSubscribeClient` | Send subscribe message through WeChat API | Choose template, fill fields, decide timing and retry policy |
 | JSAPI payment | `WechatPayClient` | Build WeChat prepay request and return JSAPI pay parameters | Own `outTradeNo`, amount, `openId`, and order state |
 | Refund request | `WechatPayClient` | Build and submit WeChat refund request | Validate refund, own refund record and refund state |
