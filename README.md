@@ -4,6 +4,13 @@
 
 V1 focuses on generic WeChat capability boundaries, Aliyun OSS basic gateway capability, Netease IM account gateway plus callback signature verification, and Amap current weather query capability. Business projects decide when to call these clients and how to handle their own domain state.
 
+## Incubating Runtime Notes
+
+- Big screen auto-scroll and fixed-height virtual-list runtime notes are documented in `docs/big-screen-auto-scroll.md`.
+- Minimal headless helper functions are kept in `runtime/big-screen-runtime.mjs`.
+- This runtime area is not a Spring Boot starter, not a Vue component package, and not a business dashboard implementation.
+- It only records reusable front-end runtime rules such as rAF loops, loop offset normalization, fixed virtual windows, row chunking, and placeholder padding.
+
 ## V1 Supported Capabilities
 
 - Mini Program `code2Session`
