@@ -8,8 +8,8 @@ This skill is the preferred entrypoint for AI/Codex/GPT agents. If an agent only
 
 Source files:
 
-- `docs/big-screen-auto-scroll.md`
-- `runtime/big-screen-runtime.mjs`
+- `https://github.com/codeinsightlab/lixin-common-capability/blob/main/docs/big-screen-auto-scroll.md`
+- `https://github.com/codeinsightlab/lixin-common-capability/blob/main/runtime/big-screen-runtime.mjs`
 
 Current headless helpers:
 
@@ -49,17 +49,17 @@ Do not use this skill for:
 When a user asks to build or review a big-screen scrolling page, follow this order:
 
 1. Read this skill.
-2. Read `docs/big-screen-auto-scroll.md` when design rationale, acceptance criteria, or anti-patterns are needed.
-3. Read `runtime/big-screen-runtime.mjs` only when code-level helper behavior is needed.
+2. Read `https://github.com/codeinsightlab/lixin-common-capability/blob/main/docs/big-screen-auto-scroll.md` when design rationale, acceptance criteria, or anti-patterns are needed.
+3. Read `https://github.com/codeinsightlab/lixin-common-capability/blob/main/runtime/big-screen-runtime.mjs` only when code-level helper behavior is needed.
 4. Inspect the target business page before editing.
 5. Keep edits inside the target project and target page unless the user explicitly opens wider scope.
 
 Recommended prompt for future AI agents:
 
 ```text
-请先读取 /Users/user/work/lixin/lixin-common-capability/skills/big-screen-runtime-usage-skill.md。
-如需设计原则，再读取 /Users/user/work/lixin/lixin-common-capability/docs/big-screen-auto-scroll.md。
-如需 runtime helper，再参考 /Users/user/work/lixin/lixin-common-capability/runtime/big-screen-runtime.mjs。
+请先读取 https://github.com/codeinsightlab/lixin-common-capability/blob/main/skills/big-screen-runtime-usage-skill.md。
+如需设计原则，再读取 https://github.com/codeinsightlab/lixin-common-capability/blob/main/docs/big-screen-auto-scroll.md。
+如需 runtime helper，再参考 https://github.com/codeinsightlab/lixin-common-capability/blob/main/runtime/big-screen-runtime.mjs。
 本轮只复用 headless runtime 思路，不抽 Vue 组件，不复制 DataPanel/InspectionBoard 业务代码。
 ```
 
@@ -108,15 +108,15 @@ Choose the smallest reference level that solves the task:
 
 | Task | Reference |
 | --- | --- |
-| Design or review a big-screen scroll strategy | `docs/big-screen-auto-scroll.md` |
-| Tell AI how to implement without over-extracting | `skills/big-screen-runtime-usage-skill.md` |
-| Reuse offset/window/chunk helper logic | `runtime/big-screen-runtime.mjs` |
+| Design or review a big-screen scroll strategy | `https://github.com/codeinsightlab/lixin-common-capability/blob/main/docs/big-screen-auto-scroll.md` |
+| Tell AI how to implement without over-extracting | `https://github.com/codeinsightlab/lixin-common-capability/blob/main/skills/big-screen-runtime-usage-skill.md` |
+| Reuse offset/window/chunk helper logic | `https://github.com/codeinsightlab/lixin-common-capability/blob/main/runtime/big-screen-runtime.mjs` |
 | Build a business dashboard page | Target business project only; do not edit common-capability unless asked |
 | Extract a Vue component | Do not do this in the current phase |
 
 ## Code Usage
 
-If the target project can import `.mjs` files directly, import only the needed helpers:
+If the target project vendors the runtime file or exposes it through its own package/build alias, import only the needed helpers:
 
 ```js
 import {
@@ -125,10 +125,16 @@ import {
   normalizeLoopOffset,
   chunkRows,
   padRowsWithPlaceholder
-} from '/Users/user/work/lixin/lixin-common-capability/runtime/big-screen-runtime.mjs'
+} from '@/utils/big-screen-runtime.mjs'
 ```
 
-If absolute imports do not fit the target build system, copy the helper into the target project's existing utility area only after confirming the user wants code reuse in that project. Keep the copied code headless and do not add business fields.
+Canonical source:
+
+```text
+https://github.com/codeinsightlab/lixin-common-capability/blob/main/runtime/big-screen-runtime.mjs
+```
+
+Do not import from a developer's local filesystem path. If direct GitHub/raw imports do not fit the target build system, copy or vendor the helper into the target project's existing utility area only after confirming the user wants code reuse in that project. Keep the copied code headless and do not add business fields.
 
 Basic loop-offset usage:
 
@@ -337,4 +343,3 @@ Not allowed unless the user explicitly opens a later phase:
 - business page rewrites
 - DataPanel or InspectionBoard refactors
 - dashboard UI library extraction
-
