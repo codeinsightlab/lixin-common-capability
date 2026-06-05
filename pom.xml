@@ -18,6 +18,7 @@
         <module>lixin-common-capability-oss-spring-boot-starter</module>
         <module>lixin-common-capability-netease-im-spring-boot-starter</module>
         <module>lixin-common-capability-weather-spring-boot-starter</module>
+        <module>lixin-common-capability-wxpusher-spring-boot-starter</module>
         <module>lixin-common-capability-all-spring-boot-starter</module>
     </modules>
 

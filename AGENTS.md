@@ -41,6 +41,8 @@
 - `lixin-common-capability-wechat-spring-boot-starter`
 - `lixin-common-capability-oss-spring-boot-starter`
 - `lixin-common-capability-netease-im-spring-boot-starter`
+- `lixin-common-capability-weather-spring-boot-starter`
+- `lixin-common-capability-wxpusher-spring-boot-starter`
 - `lixin-common-capability-all-spring-boot-starter`
 
 模块规则：
@@ -328,7 +330,51 @@ OSS V1 当前不支持：
 
 不得在 README 或 Skill 中把上述不支持能力描述为已支持能力。
 
-## 13. 后续能力新增规则
+## 13. WxPusher V1 当前边界
+
+WxPusher V1 当前支持能力：
+
+- `WxPusherService.sendToUid`
+- `WxPusherService.sendToUids`
+- `WxPusherService.sendToTopic`
+- WxPusher 标准推送 POST `/send/message`
+- `contentType`
+- `url`
+- `summary`，由接口入参 `title` 映射
+- 第三方失败返回内部 `success=false` 结果
+
+WxPusher V1 当前只支持：
+
+- 标准推送
+- 后端配置读取 `app-token`
+- 业务方传入 `uid` / `uids` / `topicId`
+- 推送关闭时跳过发送并返回失败结果
+- 第三方响应原文仅用于 debug 日志和结果字段
+- 官方 SDK 仅作为 starter 内部实现
+- 业务方只注入 `WxPusherService`，不得直接依赖第三方 SDK 类型
+
+WxPusher V1 当前不支持：
+
+- 极简推送 SPT
+- UID 绑定表
+- 用户关注 / 绑定流程
+- 参数二维码创建
+- 查询扫码用户 UID
+- 回调处理
+- 发送状态查询
+- 删除消息
+- 付费授权查询
+- 消息队列
+- 重试中心
+- 异步线程池
+- 业务 Controller 默认实现
+- 调拨单、订单、待办、接收状态等业务状态流转
+- 以 WxPusher 发送结果作为业务状态依据
+- 对业务模块暴露第三方 SDK DTO / Result / Message 类型
+
+不得在 README 或 Skill 中把上述不支持能力描述为已支持能力。
+
+## 14. 后续能力新增规则
 
 新增网易云信、短信等能力时，必须按以下顺序执行：
 
@@ -343,7 +389,7 @@ OSS V1 当前不支持：
 
 新增能力时必须继续遵守业务边界规则、错误处理硬约束、README 同步规则和 Skill 同步硬约束。
 
-## 14. 文档风格
+## 15. 文档风格
 
 项目文档必须使用 Markdown。
 
@@ -356,7 +402,7 @@ OSS V1 当前不支持：
 - 不写长篇产品愿景。
 - 不把未来规划能力写成已支持能力。
 
-## 15. 本文件变更规则
+## 16. 本文件变更规则
 
 修改 `AGENTS.md` 时必须保持规则强度不降低。
 

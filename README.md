@@ -2,14 +2,15 @@
 
 `lixin-common-capability` is a Spring Boot 2.x, 3.x, and 4.x compatible common capability starter project.
 
-V1 focuses on generic WeChat capability boundaries, Aliyun OSS basic gateway capability, Netease IM account gateway plus callback signature verification, and Amap current weather query capability. Business projects decide when to call these clients and how to handle their own domain state.
+V1 focuses on generic WeChat capability boundaries, Aliyun OSS basic gateway capability, Netease IM account gateway plus callback signature verification, Amap current weather query capability, and WxPusher standard message sending capability. Business projects decide when to call these clients and how to handle their own domain state.
 
 ## Incubating Runtime Notes
 
 - Big screen auto-scroll and fixed-height virtual-list runtime notes are documented in `docs/big-screen-auto-scroll.md`.
+- Industrial product outpainting and showroom wide-screen asset production rules are documented in `docs/industrial-product-outpainting.md`.
 - Minimal headless helper functions are kept in `runtime/big-screen-runtime.mjs`.
 - This runtime area is not a Spring Boot starter, not a Vue component package, and not a business dashboard implementation.
-- It only records reusable front-end runtime rules such as rAF loops, loop offset normalization, fixed virtual windows, row chunking, and placeholder padding.
+- It records reusable front-end/runtime and asset-production rules such as rAF loops, loop offset normalization, fixed virtual windows, row chunking, placeholder padding, product subject locking, and wide-screen showroom outpainting boundaries.
 
 ## V1 Supported Capabilities
 
@@ -31,6 +32,9 @@ V1 focuses on generic WeChat capability boundaries, Aliyun OSS basic gateway cap
 - Netease IM token refresh
 - Netease IM callback signature verification
 - Amap current weather query
+- WxPusher standard message sending to UID
+- WxPusher standard message sending to multiple UIDs
+- WxPusher standard message sending to Topic
 
 ## Explicitly Not Supported In V1
 
@@ -78,6 +82,13 @@ V1 focuses on generic WeChat capability boundaries, Aliyun OSS basic gateway cap
 - Hourly weather forecast
 - Weather business dashboard APIs such as `/bigdatadashboard/weather`
 - MES dashboard integration or frontend integration
+- WxPusher simple push token (SPT) sending
+- WxPusher UID binding table or binding workflow
+- WxPusher parameter QR code creation
+- WxPusher callback handling
+- WxPusher send status query or message deletion
+- Using WxPusher delivery result as business state transition basis
+- Retry center, queue, async executor, or compensation workflow for WxPusher sending
 
 ## Maven Dependency
 
@@ -123,6 +134,16 @@ Use the Weather starter when the project only needs current weather query capabi
 </dependency>
 ```
 
+Use the WxPusher starter when the project only needs WxPusher standard message sending capability:
+
+```xml
+<dependency>
+    <groupId>com.lixin</groupId>
+    <artifactId>lixin-common-capability-wxpusher-spring-boot-starter</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+</dependency>
+```
+
 Use the all-starter when the project wants to import every capability starter provided by this project:
 
 ```xml
@@ -133,7 +154,7 @@ Use the all-starter when the project wants to import every capability starter pr
 </dependency>
 ```
 
-The all-starter is only an aggregation package. It currently aggregates the WeChat starter, OSS starter, Netease IM starter, and Weather starter. The current WeChat, OSS, Netease IM, and Weather configuration prefixes, usage examples, and error handling rules remain valid.
+The all-starter is only an aggregation package. It currently aggregates the WeChat starter, OSS starter, Netease IM starter, Weather starter, and WxPusher starter. The current WeChat, OSS, Netease IM, Weather, and WxPusher configuration prefixes, usage examples, and error handling rules remain valid.
 
 ## Auto Configuration Compatibility
 
@@ -236,6 +257,59 @@ lixin:
 ```
 
 `AMAP_WEATHER_KEY` is the Amap Web Service API key. Do not hardcode it in source code or tests. `city-code` is an Amap city adcode such as Hangzhou `330100`. `cache-minutes` controls local in-memory cache TTL for `provider + cityCode`; default is `10`. Weather V1 is a public capability only and does not expose MES dashboard APIs or frontend behavior.
+
+The WxPusher configuration prefix is `lixin.capability.wxpusher`. `enabled` defaults to `false`. When disabled, `WxPusherService` skips sending and returns `success=false`. `app-token` must come from backend configuration and must not be hardcoded or logged. The starter uses the official `wxpusher-sdk-java` dependency internally. Business projects must inject `WxPusherService` and must not import or call official SDK types directly.
+
+```yaml
+lixin:
+  capability:
+    wxpusher:
+      enabled: true
+      app-token: ${WXPUSHER_APP_TOKEN:}
+      base-url: https://wxpusher.zjiecode.com/api
+      connect-timeout-ms: 3000
+      read-timeout-ms: 5000
+```
+
+WxPusher V1 uses the official standard POST API `/send/message` with JSON fields `appToken`, `content`, `summary`, `contentType`, `uids`, `topicIds`, and `url`. `title` in `WxPusherService` maps to the official `summary` field. Official limits applied by the starter include `content <= 40000`, `summary <= 100`, `url <= 1000`, `uids <= 2000`, and `topicIds <= 5`.
+
+WxPusher V1 currently delegates sending to official SDK `com.smjcco.wxpusher:client-sdk:3.0.2`. In SDK mode, `base-url`, `connect-timeout-ms`, and `read-timeout-ms` are retained for configuration compatibility but are not applied by the official SDK. The official SDK fixes its base URL and timeout internally. Because SDK `MessageResult` exposes the deprecated `messageId` but not the newer `messageContentId` / `sendRecordId`, `messageContentId` and `sendRecordIds` in `WxPusherSendResult` may be empty when the SDK does not expose those values.
+
+## WxPusher Usage
+
+```java
+import com.lixin.capability.wxpusher.dto.WxPusherSendResult;
+import com.lixin.capability.wxpusher.service.WxPusherService;
+
+public class ReminderExample {
+    private final WxPusherService wxPusherService;
+
+    public ReminderExample(WxPusherService wxPusherService) {
+        this.wxPusherService = wxPusherService;
+    }
+
+    public WxPusherSendResult sendReminder(String uid) {
+        return wxPusherService.sendToUid(
+                uid,
+                "待办提醒",
+                "你有一条新的待办，请及时处理。",
+                1,
+                "https://example.com/todo");
+    }
+}
+```
+
+`WxPusherSendResult` contains:
+
+- `success`
+- `message`
+- `providerCode`
+- `providerMessage`
+- `messageContentId`
+- `sendRecordIds`
+- `rawResponse`
+
+Business projects should treat WxPusher as notification enhancement only. Business state must be guaranteed by the business system's own todo, transfer, receive, order, or workflow state. WxPusher send failure is returned as `success=false` and should not be used as a reason to roll back the main business transaction.
 
 ## Mini Program Usage
 
@@ -614,7 +688,7 @@ public class WeatherExample {
 
 ## Business Boundary
 
-Business projects decide which openId to use, which trade or refund number to use, where the amount comes from, which OSS objectKey to use, which Netease IM `accountId` to use, where IM tokens are stored, which weather city code to query, and how to handle business state after payment, refund, upload, deletion, URL generation, IM account operations, callback verification, or weather query. This starter only owns generic WeChat request building, OSS SDK calls, Netease IM HTTP API calls, Amap current weather API calls, response mapping, notify or callback verification, signed URL generation, local weather cache, and exception boundaries.
+Business projects decide which openId to use, which trade or refund number to use, where the amount comes from, which OSS objectKey to use, which Netease IM `accountId` to use, where IM tokens are stored, which weather city code to query, which WxPusher UID or Topic to target, and how to handle business state after payment, refund, upload, deletion, URL generation, IM account operations, callback verification, weather query, or WxPusher sending. This starter only owns generic WeChat request building, OSS SDK calls, Netease IM HTTP API calls, Amap current weather API calls, official WxPusher SDK invocation, response mapping, notify or callback verification, signed URL generation, local weather cache, and exception boundaries.
 
 ## Version Suggestion
 
